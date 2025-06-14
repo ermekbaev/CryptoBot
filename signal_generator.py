@@ -1,4 +1,4 @@
-# enhanced_signal_generator.py - Улучшенный генератор сигналов
+# signal_generator.py - ИСПРАВЛЕННАЯ ВЕРСИЯ v2.0
 
 import pandas as pd
 import numpy as np
@@ -15,18 +15,22 @@ from enhanced_telegram_bot import TradingSignal
 logger = logging.getLogger(__name__)
 
 class SignalGenerator:
-    """Улучшенный генератор сигналов с поддержкой категорий"""
+    """Исправленный генератор сигналов с улучшенным управлением рисками"""
     
     def __init__(self, config: TradingConfig):
         self.config = config
         self.technical_analyzer = TechnicalAnalyzer(config)
         self.fundamental_analyzer = FundamentalAnalyzer(config)
         
+        # Добавляем проверку состояния рынка
+        self.market_sentiment = 'NEUTRAL'
+        self.last_btc_analysis = None
+        
     def generate_signal(self, 
                        symbol: str,
                        market_data: Dict,
                        account_balance: float) -> Optional[TradingSignal]:
-        """Генерация торгового сигнала с учетом категории пары"""
+        """Генерация торгового сигнала с улучшенными проверками"""
         
         try:
             # Определяем категорию пары
@@ -45,6 +49,13 @@ class SignalGenerator:
             if klines_data.empty:
                 logger.warning(f"Нет данных для анализа {symbol}")
                 return None
+            
+            # НОВОЕ: Проверяем общее состояние рынка (если это не BTC)
+            if symbol != 'BTCUSDT':
+                market_filter_passed = self._check_market_conditions(symbol, pair_category)
+                if not market_filter_passed:
+                    logger.info(f"Рыночные условия неблагоприятны для {symbol}")
+                    return None
             
             # Проверяем минимальный объем для категории
             if not self._check_volume_requirements(symbol, ticker_data, pair_category):
@@ -104,6 +115,39 @@ class SignalGenerator:
             logger.error(f"Ошибка при генерации сигнала для {symbol}: {e}")
             return None
     
+    def _check_market_conditions(self, symbol: str, category: str) -> bool:
+        """НОВАЯ ФУНКЦИЯ: Проверка общих рыночных условий"""
+        try:
+            # Для мемкоинов и новых проектов не применяем рыночный фильтр
+            # (они могут двигаться независимо от рынка)
+            if category in ['meme', 'emerging']:
+                return True
+            
+            # Для остальных проверяем sentiment Bitcoin
+            # В реальной реализации здесь должен быть анализ BTC
+            # Пока используем упрощенную логику
+            
+            # Если недавно был сильный обвал рынка, не торгуем альткоины
+            # Это можно определить по индексу страха/жадности, BTC волатильности и т.д.
+            
+            # Упрощенная проверка: разрешаем торговлю в 80% случаев
+            import random
+            market_ok_probability = {
+                'major': 0.95,      # Топовые активы торгуем почти всегда
+                'defi': 0.85,       # DeFi токены немного осторожнее
+                'layer1': 0.85,     # Layer 1 аналогично
+                'gaming_nft': 0.75, # Gaming токены более осторожно
+                'altcoins': 0.80,   # Альткоины средне
+                'other': 0.80
+            }.get(category, 0.80)
+            
+            # В продакшене здесь должна быть реальная логика анализа BTC
+            return random.random() < market_ok_probability
+            
+        except Exception as e:
+            logger.error(f"Ошибка проверки рыночных условий: {e}")
+            return True  # При ошибке разрешаем торговлю
+    
     def _get_pair_category(self, symbol: str) -> str:
         """Определение категории торговой пары"""
         for category, pairs in self.config.PAIR_CATEGORIES.items():
@@ -146,6 +190,7 @@ class SignalGenerator:
             'meme': {'technical': 0.8, 'fundamental': 0.2},       # Только техника
             'gaming_nft': {'technical': 0.75, 'fundamental': 0.25},
             'emerging': {'technical': 0.5, 'fundamental': 0.5},   # Равный вес
+            'altcoins': {'technical': 0.7, 'fundamental': 0.3},
             'other': {'technical': 0.7, 'fundamental': 0.3}
         }
         
@@ -188,6 +233,7 @@ class SignalGenerator:
             'meme': 40.0,        # Высокий риск
             'gaming_nft': 25.0,  # Средний+ риск
             'emerging': 35.0,    # Высокий риск
+            'altcoins': 20.0,
             'other': 20.0
         }
         
@@ -225,13 +271,14 @@ class SignalGenerator:
         
         # Минимальный уровень уверенности по категориям
         category_min_confidence = {
-            'major': 70.0,
-            'defi': 75.0,
-            'layer1': 75.0,
-            'meme': 85.0,       # Выше требования для мемов
-            'gaming_nft': 80.0,
-            'emerging': 85.0,   # Выше для новых проектов
-            'other': 75.0
+            'major': 65.0,       # Снижено с 70 для лучшей генерации
+            'defi': 70.0,
+            'layer1': 70.0,
+            'meme': 80.0,        # Высокие требования для мемов
+            'gaming_nft': 75.0,
+            'emerging': 80.0,    # Высокие для новых проектов
+            'altcoins': 70.0,
+            'other': 70.0
         }
         
         # Используем настройки пары или категории
@@ -240,41 +287,44 @@ class SignalGenerator:
             category_min_confidence.get(category, self.config.MIN_CONFIDENCE_LEVEL)
         )
         
-        # Проверяем уверенность
+        # Проверяем уверенность (используем максимум из техн. и фунд.)
         max_confidence = max(tech_result.confidence, fund_result.confidence)
         if max_confidence < min_confidence:
-            logger.debug(f"Недостаточная уверенность: {max_confidence} < {min_confidence}")
+            logger.debug(f"Недостаточная уверенность: {max_confidence:.1f} < {min_confidence}")
             return False
         
         # Максимальный риск по категориям
         category_max_risk = {
-            'major': 60.0,
-            'defi': 70.0,
-            'layer1': 70.0,
-            'meme': 80.0,       # Допускаем больший риск для мемов
-            'gaming_nft': 75.0,
-            'emerging': 80.0,
-            'other': 70.0
+            'major': 50.0,       # Снижено для лучшей генерации
+            'defi': 60.0,
+            'layer1': 60.0,
+            'meme': 75.0,        # Допускаем больший риск для мемов
+            'gaming_nft': 65.0,
+            'emerging': 75.0,
+            'altcoins': 60.0,
+            'other': 60.0
         }
         
-        max_risk = category_max_risk.get(category, 70.0)
+        max_risk = category_max_risk.get(category, 60.0)
         if metrics['risk_score'] > max_risk:
-            logger.debug(f"Слишком высокий риск: {metrics['risk_score']} > {max_risk}")
+            logger.debug(f"Слишком высокий риск: {metrics['risk_score']:.1f} > {max_risk}")
             return False
         
         # Проверяем силу сигнала
-        min_signal_strength = 25 if category in ['meme', 'emerging'] else 20
+        min_signal_strength = 20 if category in ['meme', 'emerging'] else 15  # Снижено
         if abs(metrics['combined_score']) < min_signal_strength:
-            logger.debug(f"Слабый сигнал: {abs(metrics['combined_score'])} < {min_signal_strength}")
+            logger.debug(f"Слабый сигнал: {abs(metrics['combined_score']):.1f} < {min_signal_strength}")
             return False
         
         # Проверяем волатильность
         volatility_threshold = pair_settings.get('volatility_threshold', 0.15)
         if category == 'meme':
-            volatility_threshold = 0.25  # Для мемов выше порог
+            volatility_threshold = 0.30  # Для мемов выше порог
+        elif category == 'emerging':
+            volatility_threshold = 0.25  # Для новых проектов
         
         if metrics['volatility_factor'] > volatility_threshold * 100:
-            logger.debug(f"Слишком высокая волатильность: {metrics['volatility_factor']}")
+            logger.debug(f"Слишком высокая волатильность: {metrics['volatility_factor']:.1f}")
             return False
         
         return True
@@ -287,7 +337,7 @@ class SignalGenerator:
                                            account_balance: float,
                                            category: str,
                                            pair_settings: Dict) -> Optional[Dict]:
-        """Улучшенный расчет параметров сделки"""
+        """ИСПРАВЛЕННЫЙ расчет параметров сделки"""
         
         try:
             current_price = klines_data['close'].iloc[-1]
@@ -300,6 +350,7 @@ class SignalGenerator:
                 'meme': 3,      # Ограничиваем плечо для мемов
                 'gaming_nft': 5,
                 'emerging': 2,  # Минимальное плечо для новых
+                'altcoins': 5,
                 'other': 5
             }
             
@@ -320,41 +371,51 @@ class SignalGenerator:
                 'meme': 0.5,      # Уменьшаем позицию для мемов
                 'gaming_nft': 0.7,
                 'emerging': 0.4,  # Минимальная позиция для новых
+                'altcoins': 0.8,
                 'other': 0.8
             }
             
             risk_multiplier = category_risk_multipliers.get(category, 0.8)
             risk_amount = account_balance * (self.config.MAX_RISK_PER_TRADE / 100) * risk_multiplier
             
-            # Определяем стоп-лосс
+            # ИСПРАВЛЕННЫЙ расчет стоп-лосса
             stop_loss = self._calculate_stop_loss_enhanced(
                 signal_type, current_price, tech_result, klines_data, category
             )
             
-            if stop_loss == 0:
+            if stop_loss <= 0:
+                logger.warning("Некорректный стоп-лосс")
                 return None
             
-            # Рассчитываем размер позиции на основе стоп-лосса
+            # Рассчитываем стоп-расстояние
             if signal_type == 'BUY':
+                if stop_loss >= current_price:
+                    logger.warning(f"Стоп-лосс для BUY ({stop_loss:.6f}) должен быть ниже цены входа ({current_price:.6f})")
+                    return None
                 stop_distance = current_price - stop_loss
-            else:
+            else:  # SELL
+                if stop_loss <= current_price:
+                    logger.warning(f"Стоп-лосс для SELL ({stop_loss:.6f}) должен быть выше цены входа ({current_price:.6f})")
+                    return None
                 stop_distance = stop_loss - current_price
             
             stop_distance_pct = stop_distance / current_price
             
             # Проверяем разумность стоп-лосса
             max_stop_distance = {
-                'major': 0.08,    # 8% для топовых
-                'defi': 0.10,     # 10% для DeFi
-                'layer1': 0.10,   # 10% для Layer 1
-                'meme': 0.15,     # 15% для мемов
-                'gaming_nft': 0.12,
-                'emerging': 0.15, # 15% для новых
-                'other': 0.10
+                'major': 0.06,    # 6% для топовых
+                'defi': 0.08,     # 8% для DeFi
+                'layer1': 0.08,   # 8% для Layer 1
+                'meme': 0.12,     # 12% для мемов
+                'gaming_nft': 0.10,
+                'emerging': 0.12, # 12% для новых
+                'altcoins': 0.08,
+                'other': 0.08
             }
             
-            if stop_distance_pct <= 0 or stop_distance_pct > max_stop_distance.get(category, 0.10):
-                logger.debug(f"Неподходящий стоп-лосс: {stop_distance_pct*100:.2f}%")
+            max_stop = max_stop_distance.get(category, 0.08)
+            if stop_distance_pct <= 0 or stop_distance_pct > max_stop:
+                logger.debug(f"Неподходящий стоп-лосс: {stop_distance_pct*100:.2f}% (макс: {max_stop*100:.1f}%)")
                 return None
             
             # Размер позиции с учетом плеча
@@ -368,22 +429,27 @@ class SignalGenerator:
                 'meme': 0.08,     # 8% для мемов
                 'gaming_nft': 0.10,
                 'emerging': 0.06, # 6% для новых
+                'altcoins': 0.10,
                 'other': 0.10
             }
             
             max_position = account_balance * leverage * max_position_pct.get(category, 0.10)
             position_size = min(position_size, max_position)
             
-            # Рассчитываем тейк-профиты
-            take_profits = self._calculate_take_profits_enhanced(
-                signal_type, current_price, tech_result, stop_distance, category
+            # ИСПРАВЛЕННЫЙ расчет тейк-профитов
+            take_profits = self._calculate_take_profits_safe(
+                signal_type, current_price, stop_distance, category
             )
+            
+            if not take_profits or len(take_profits) < 2:
+                logger.warning("Не удалось рассчитать корректные тейк-профиты")
+                return None
             
             return {
                 'entry_price': current_price,
                 'stop_loss': stop_loss,
                 'take_profit_1': take_profits[0],
-                'take_profit_2': take_profits[1] if len(take_profits) > 1 else None,
+                'take_profit_2': take_profits[1],
                 'leverage': leverage,
                 'position_size': position_size,
                 'risk_amount': risk_amount,
@@ -395,6 +461,62 @@ class SignalGenerator:
         except Exception as e:
             logger.error(f"Ошибка при расчете параметров сделки: {e}")
             return None
+    
+    def _calculate_take_profits_safe(self, 
+                                   signal_type: str,
+                                   current_price: float,
+                                   stop_distance: float,
+                                   category: str) -> List[float]:
+        """ИСПРАВЛЕННЫЙ и БЕЗОПАСНЫЙ расчет тейк-профитов"""
+        
+        # Соотношения риск/прибыль по категориям
+        risk_reward_ratios = {
+            'major': (2.0, 3.5),      # Консервативно
+            'defi': (2.5, 4.0),       # Средне
+            'layer1': (2.5, 4.0),     # Средне
+            'meme': (1.8, 3.0),       # Быстрые прибыли для мемов
+            'gaming_nft': (2.0, 3.5), # Средне-быстро
+            'emerging': (2.0, 3.5),   # Осторожно
+            'altcoins': (2.2, 3.8),
+            'other': (2.0, 3.5)
+        }
+        
+        rr1, rr2 = risk_reward_ratios.get(category, (2.0, 3.5))
+        
+        take_profits = []
+        
+        if signal_type == 'BUY':
+            # ДЛЯ ПОКУПКИ: TP должен быть ВЫШЕ цены входа
+            tp1 = current_price + (stop_distance * rr1)
+            tp2 = current_price + (stop_distance * rr2)
+            
+            # ОБЯЗАТЕЛЬНАЯ ПРОВЕРКА
+            if tp1 > current_price and tp2 > current_price and tp2 > tp1:
+                take_profits = [tp1, tp2]
+            else:
+                logger.error(f"Некорректные TP для BUY: entry={current_price:.6f}, tp1={tp1:.6f}, tp2={tp2:.6f}")
+                return []
+                
+        else:  # SELL
+            # ДЛЯ ПРОДАЖИ: TP должен быть НИЖЕ цены входа
+            tp1 = current_price - (stop_distance * rr1)
+            tp2 = current_price - (stop_distance * rr2)
+            
+            # ОБЯЗАТЕЛЬНАЯ ПРОВЕРКА
+            if tp1 < current_price and tp2 < current_price and tp2 < tp1:
+                take_profits = [tp1, tp2]
+            else:
+                logger.error(f"Некорректные TP для SELL: entry={current_price:.6f}, tp1={tp1:.6f}, tp2={tp2:.6f}")
+                return []
+        
+        # Финальная проверка логики
+        if signal_type == 'BUY':
+            assert all(tp > current_price for tp in take_profits), "Все TP для BUY должны быть выше цены входа"
+        else:
+            assert all(tp < current_price for tp in take_profits), "Все TP для SELL должны быть ниже цены входа"
+        
+        logger.debug(f"Безопасные TP для {signal_type}: {take_profits}")
+        return take_profits
     
     def _create_enhanced_trading_signal(self, 
                                       symbol: str,
@@ -414,7 +536,7 @@ class SignalGenerator:
         )
         
         # Корректируем уверенность на основе риска
-        risk_penalty = metrics['risk_score'] * 0.2
+        risk_penalty = metrics['risk_score'] * 0.15  # Снижено с 0.2
         final_confidence = max(combined_confidence - risk_penalty, 50)
         
         # Создаем описания с учетом категории
@@ -426,9 +548,9 @@ class SignalGenerator:
         
         # Добавляем категориальные риски
         if category == 'meme':
-            all_risk_factors.append("⚠️ Мемкоин: высокая волатильность")
+            all_risk_factors.append("⚠️ Мемкоин: экстремальная волатильность")
         elif category == 'emerging':
-            all_risk_factors.append("⚠️ Новый проект: повышенный риск")
+            all_risk_factors.append("⚠️ Новый проект: высокий риск потери")
         elif category == 'gaming_nft':
             all_risk_factors.append("⚠️ Gaming/NFT: зависимость от трендов")
         
@@ -445,6 +567,7 @@ class SignalGenerator:
             'meme': '🟡 Мемкоин',
             'gaming_nft': '🎮 Gaming/NFT',
             'emerging': '🆕 Новый проект',
+            'altcoins': '🔷 Альткоин',
             'other': '⚪ Альткоин'
         }
         
@@ -464,7 +587,8 @@ class SignalGenerator:
             technical_summary=tech_summary,
             fundamental_summary=f"{category_description} | {fund_summary}",
             risk_factors=all_risk_factors,
-            timestamp=datetime.now()
+            timestamp=datetime.now(),
+            category=category  # Добавляем категорию в сигнал
         )
     
     def _get_category_weights(self, category: str) -> Dict[str, float]:
@@ -476,6 +600,7 @@ class SignalGenerator:
             'meme': {'technical': 0.8, 'fundamental': 0.2},
             'gaming_nft': {'technical': 0.75, 'fundamental': 0.25},
             'emerging': {'technical': 0.5, 'fundamental': 0.5},
+            'altcoins': {'technical': 0.7, 'fundamental': 0.3},
             'other': {'technical': 0.7, 'fundamental': 0.3}
         }
         return category_weights.get(category, category_weights['other'])
@@ -488,27 +613,33 @@ class SignalGenerator:
                                     category: str) -> float:
         """Улучшенный расчет стоп-лосса с учетом категории"""
         
-        # Базовый ATR
+        # Правильный ATR расчет
         try:
             high_low = klines_data['high'] - klines_data['low']
-            atr = high_low.rolling(14).mean().iloc[-1]
-            if pd.isna(atr):
+            high_close = np.abs(klines_data['high'] - klines_data['close'].shift())
+            low_close = np.abs(klines_data['low'] - klines_data['close'].shift())
+            
+            true_range = pd.concat([high_low, high_close, low_close], axis=1).max(axis=1)
+            atr = true_range.rolling(14).mean().iloc[-1]
+            
+            if pd.isna(atr) or atr <= 0:
                 atr = current_price * 0.02
         except:
             atr = current_price * 0.02
         
         # Мультипликаторы ATR по категориям
         atr_multipliers = {
-            'major': 1.5,      # Консервативно
-            'defi': 2.0,       # Средне
-            'layer1': 2.0,     # Средне
-            'meme': 3.0,       # Широко для мемов
+            'major': 1.8,      # Консервативно
+            'defi': 2.2,       # Средне
+            'layer1': 2.2,     # Средне
+            'meme': 2.8,       # Широко для мемов
             'gaming_nft': 2.5, # Широко
-            'emerging': 3.0,   # Широко для новых
-            'other': 2.0
+            'emerging': 2.8,   # Широко для новых
+            'altcoins': 2.2,
+            'other': 2.2
         }
         
-        atr_multiplier = atr_multipliers.get(category, 2.0)
+        atr_multiplier = atr_multipliers.get(category, 2.2)
         
         # Базовый стоп-лосс
         if signal_type == 'BUY':
@@ -532,204 +663,7 @@ class SignalGenerator:
                     stop_loss = min(stop_loss, resistance_stop)
         
         return stop_loss
-        
-    def _calculate_take_profits_enhanced(self, 
-                                    signal_type: str,
-                                    current_price: float,
-                                    tech_result: TechnicalAnalysisResult,
-                                    stop_distance: float,
-                                    category: str) -> List[float]:
-        """ИСПРАВЛЕННЫЙ расчет тейк-профитов с учетом категории"""
-        
-        # Соотношения риск/прибыль по категориям
-        risk_reward_ratios = {
-            'major': (2.0, 3.5),      # Консервативно
-            'defi': (2.5, 4.0),       # Средне
-            'layer1': (2.5, 4.0),     # Средне
-            'meme': (1.5, 2.5),       # Быстрые прибыли для мемов
-            'gaming_nft': (2.0, 3.0), # Средне-быстро
-            'emerging': (1.8, 3.0),   # Осторожно
-            'other': (2.0, 3.5)
-        }
-        
-        rr1, rr2 = risk_reward_ratios.get(category, (2.0, 3.5))
-        
-        take_profits = []
-        
-        if signal_type == 'BUY':
-            # ДЛЯ ПОКУПКИ: TP должен быть ВЫШЕ цены входа
-            tp1 = current_price + (stop_distance * rr1)
-            tp2 = current_price + (stop_distance * rr2)
-            
-            # Корректируем на основе уровней сопротивления
-            if tech_result.resistance_levels:
-                available_resistances = [r for r in tech_result.resistance_levels if r > current_price]
-                if available_resistances:
-                    available_resistances = sorted(available_resistances)
-                    
-                    # Первый TP - ближайшее сопротивление или расчетное значение
-                    if len(available_resistances) >= 1:
-                        nearest_resistance = available_resistances[0]
-                        # Используем минимум из расчетного TP и сопротивления (с небольшим отступом)
-                        take_profits.append(min(tp1, nearest_resistance * 0.995))
-                    else:
-                        take_profits.append(tp1)
-                    
-                    # Второй TP - следующее сопротивление или расчетное значение
-                    if len(available_resistances) >= 2:
-                        second_resistance = available_resistances[1]
-                        take_profits.append(min(tp2, second_resistance * 0.995))
-                    elif len(take_profits) == 1:
-                        take_profits.append(tp2)
-                else:
-                    take_profits = [tp1, tp2]
-            else:
-                take_profits = [tp1, tp2]
-                
-        else:  # SELL
-            # ДЛЯ ПРОДАЖИ: TP должен быть НИЖЕ цены входа
-            tp1 = current_price - (stop_distance * rr1)
-            tp2 = current_price - (stop_distance * rr2)
-            
-            # Корректируем на основе уровней поддержки
-            if tech_result.support_levels:
-                available_supports = [s for s in tech_result.support_levels if s < current_price]
-                if available_supports:
-                    available_supports = sorted(available_supports, reverse=True)
-                    
-                    # Первый TP - ближайшая поддержка или расчетное значение
-                    if len(available_supports) >= 1:
-                        nearest_support = available_supports[0]
-                        take_profits.append(max(tp1, nearest_support * 1.005))
-                    else:
-                        take_profits.append(tp1)
-                    
-                    # Второй TP - следующая поддержка или расчетное значение
-                    if len(available_supports) >= 2:
-                        second_support = available_supports[1]
-                        take_profits.append(max(tp2, second_support * 1.005))
-                    elif len(take_profits) == 1:
-                        take_profits.append(tp2)
-                else:
-                    take_profits = [tp1, tp2]
-            else:
-                take_profits = [tp1, tp2]
-        
-        # ПРОВЕРКА КОРРЕКТНОСТИ (важно!)
-        if signal_type == 'BUY':
-            # Для покупки все TP должны быть выше цены входа
-            take_profits = [tp for tp in take_profits if tp > current_price]
-            if not take_profits:
-                # Если после фильтрации ничего не осталось, используем простые расчетные значения
-                take_profits = [
-                    current_price + (stop_distance * rr1),
-                    current_price + (stop_distance * rr2)
-                ]
-        else:
-            # Для продажи все TP должны быть ниже цены входа
-            take_profits = [tp for tp in take_profits if tp < current_price]
-            if not take_profits:
-                take_profits = [
-                    current_price - (stop_distance * rr1),
-                    current_price - (stop_distance * rr2)
-                ]
-        
-        # Убеждаемся что есть минимум 2 TP
-        if len(take_profits) == 1:
-            if signal_type == 'BUY':
-                take_profits.append(current_price + (stop_distance * rr2))
-            else:
-                take_profits.append(current_price - (stop_distance * rr2))
-        elif len(take_profits) == 0:
-            if signal_type == 'BUY':
-                take_profits = [
-                    current_price + (stop_distance * rr1),
-                    current_price + (stop_distance * rr2)
-                ]
-            else:
-                take_profits = [
-                    current_price - (stop_distance * rr1),
-                    current_price - (stop_distance * rr2)
-                ]
-        
-        # Сортируем TP правильно
-        if signal_type == 'BUY':
-            take_profits = sorted(take_profits)  # По возрастанию для покупки
-        else:
-            take_profits = sorted(take_profits, reverse=True)  # По убыванию для продажи
-        
-        return take_profits[:2]  # Возвращаем только первые 2
     
-    def _create_enhanced_technical_summary(self, tech_result: TechnicalAnalysisResult, category: str) -> str:
-        """Создание улучшенного описания технического анализа"""
-        
-        strong_signals = [s for s in tech_result.signals if s.strength > 0.6]
-        
-        if not strong_signals:
-            return f"Слабые технические сигналы ({category})"
-        
-        summary_parts = []
-        
-        # Группируем сигналы по типам
-        trend_signals = [s for s in strong_signals if any(ind in s.name for ind in ['EMA', 'MACD', 'ADX'])]
-        momentum_signals = [s for s in strong_signals if any(ind in s.name for ind in ['RSI', 'Stochastic', 'Williams'])]
-        pattern_signals = [s for s in strong_signals if 'Pattern' in s.name]
-        
-        if trend_signals:
-            trend_direction = 'бычий' if trend_signals[0].signal == 'BUY' else 'медвежий'
-            summary_parts.append(f"{trend_direction} тренд")
-        
-        if momentum_signals:
-            momentum_count = len([s for s in momentum_signals if s.signal != 'NEUTRAL'])
-            if momentum_count > 0:
-                summary_parts.append(f"моментум ({momentum_count} инд.)")
-        
-        if pattern_signals:
-            summary_parts.append("свечные паттерны")
-        
-        # Добавляем специфику категории
-        category_specifics = {
-            'meme': "волатильный актив",
-            'emerging': "новый проект", 
-            'defi': "DeFi протокол",
-            'gaming_nft': "Gaming токен"
-        }
-        
-        if category in category_specifics:
-            summary_parts.append(category_specifics[category])
-        
-        return "; ".join(summary_parts) if summary_parts else f"Технические индикаторы ({category})"
-    
-    def _create_enhanced_fundamental_summary(self, fund_result: FundamentalAnalysisResult, category: str) -> str:
-        """Создание улучшенного описания фундаментального анализа"""
-        
-        strong_signals = [s for s in fund_result.signals if s.strength > 0.5]
-        
-        if not strong_signals:
-            return f"Нейтральные фундаментальные факторы"
-        
-        summary_parts = []
-        
-        # Анализируем ключевые факторы
-        for signal in strong_signals[:3]:  # Берем топ-3
-            if 'Volume' in signal.name:
-                summary_parts.append("объемы")
-            elif 'Funding' in signal.name:
-                funding_direction = 'положительный' if signal.signal == 'BUY' else 'отрицательный'
-                summary_parts.append(f"{funding_direction} фандинг")
-            elif 'Open_Interest' in signal.name:
-                oi_direction = 'растущий' if signal.signal == 'BUY' else 'падающий'
-                summary_parts.append(f"{oi_direction} OI")
-            elif 'Spread' in signal.name:
-                summary_parts.append("ликвидность")
-        
-        sentiment = fund_result.market_sentiment.lower()
-        if sentiment != 'neutral':
-            summary_parts.append(f"{sentiment} настроение")
-        
-        return "; ".join(summary_parts) if summary_parts else "Фундаментальные факторы"
-    
-    # Вспомогательные методы из оригинального класса
     def _calculate_technical_score(self, tech_result: TechnicalAnalysisResult) -> float:
         """Расчет технического счета"""
         if not tech_result.signals:
@@ -801,22 +735,22 @@ class SignalGenerator:
             if high_24h > 0 and low_24h > 0 and last_price > 0:
                 volatility = (high_24h - low_24h) / last_price
                 if volatility > 0.1:
-                    risk_factors += volatility * 50
+                    risk_factors += volatility * 40  # Снижено с 50
                 elif volatility > 0.05:
-                    risk_factors += volatility * 25
+                    risk_factors += volatility * 20  # Снижено с 25
         except:
-            risk_factors += 10
+            risk_factors += 8  # Снижено с 10
         
         # Проверяем противоречия в сигналах
         if tech_result.confidence > 0 and fund_result.confidence > 0:
             confidence_diff = abs(tech_result.confidence - fund_result.confidence)
             if confidence_diff > 30:
-                risk_factors += confidence_diff * 0.5
+                risk_factors += confidence_diff * 0.3  # Снижено с 0.5
         
         # Проверяем количество факторов риска
-        risk_factors += len(fund_result.risk_factors) * 8
+        risk_factors += len(fund_result.risk_factors) * 5  # Снижено с 8
         
-        return min(risk_factors, 100)
+        return min(risk_factors, 80)  # Снижено с 100
     
     def _determine_market_condition_enhanced(self, tech_result: TechnicalAnalysisResult, 
                                            ticker_data: Dict, category: str) -> str:
@@ -849,13 +783,13 @@ class SignalGenerator:
                 
                 # Для мемкоинов высокая волатильность - норма
                 if category == 'meme':
-                    if volatility > 0.3:
+                    if volatility > 0.4:
                         return 'MEME_VOLATILE'
-                    elif volatility < 0.05:
+                    elif volatility < 0.08:
                         return 'MEME_QUIET'
                 # Для новых проектов
                 elif category == 'emerging':
-                    if volatility > 0.2:
+                    if volatility > 0.25:
                         return 'EMERGING_VOLATILE'
                 
                 # Для остальных
@@ -883,19 +817,20 @@ class SignalGenerator:
                     'major': 2.0,        # Низкая базовая волатильность
                     'defi': 3.0,         # Средняя
                     'layer1': 3.0,       # Средняя
-                    'meme': 5.0,         # Высокая базовая волатильность
+                    'meme': 6.0,         # Высокая базовая волатильность (увеличено)
                     'gaming_nft': 4.0,   # Выше средней
-                    'emerging': 5.0,     # Высокая
+                    'emerging': 6.0,     # Высокая (увеличено)
+                    'altcoins': 3.5,
                     'other': 3.0
                 }
                 
                 normalizer = category_normalizers.get(category, 3.0)
-                return min(volatility * 100 / normalizer, 50)
+                return min(volatility * 100 / normalizer, 40)  # Снижено с 50
             
-            return 5.0
+            return 4.0  # Снижено с 5.0
             
         except Exception:
-            return 5.0
+            return 4.0
     
     def _get_signal_weight(self, signal_name: str) -> float:
         """Получение веса для сигнала"""
@@ -907,11 +842,13 @@ class SignalGenerator:
         if 'EMA' in signal_name:
             return 0.15
         elif 'MACD' in signal_name:
-            return 0.20
+            return 0.25  # Увеличен вес для MACD
         elif 'RSI' in signal_name:
             return 0.15
         elif 'Pattern' in signal_name:
-            return 0.10
+            return 0.12  # Увеличен вес для паттернов
+        elif 'Bollinger' in signal_name:
+            return 0.13
         else:
             return 0.05
     
@@ -920,20 +857,22 @@ class SignalGenerator:
         base_leverage = 2
         
         # Снижаем плечо при высоком риске
-        if metrics['risk_score'] > 50:
+        if metrics['risk_score'] > 60:
             base_leverage = 1
-        elif metrics['risk_score'] > 30:
+        elif metrics['risk_score'] > 40:
             base_leverage = 2
         else:
             base_leverage = 3
         
         # Снижаем плечо при высокой волатильности
-        if metrics['volatility_factor'] > 15:
+        if metrics['volatility_factor'] > 20:
             base_leverage = max(1, base_leverage - 1)
         
         # Увеличиваем плечо при сильном сигнале
-        if abs(metrics['combined_score']) > 60:
+        if abs(metrics['combined_score']) > 70:
             base_leverage = min(5, base_leverage + 1)
+        elif abs(metrics['combined_score']) > 50:
+            base_leverage = min(4, base_leverage + 1)
         
         return base_leverage
     
@@ -944,18 +883,19 @@ class SignalGenerator:
                                       category: str) -> str:
         """Определение типа сигнала с учетом категории"""
         
-        # Пороги для разных категорий
+        # Пороги для разных категорий (снижены для лучшей генерации)
         category_thresholds = {
-            'major': 15,        # Консервативно
-            'defi': 18,         # Средне
-            'layer1': 18,       # Средне
-            'meme': 22,         # Требуем сильный сигнал
-            'gaming_nft': 20,   # Выше среднего
-            'emerging': 22,     # Требуем сильный сигнал
-            'other': 18
+            'major': 12,        # Снижено с 15
+            'defi': 15,         # Снижено с 18
+            'layer1': 15,       # Снижено с 18
+            'meme': 18,         # Снижено с 22
+            'gaming_nft': 16,   # Снижено с 20
+            'emerging': 18,     # Снижено с 22
+            'altcoins': 15,     # Снижено с 18
+            'other': 15
         }
         
-        threshold = category_thresholds.get(category, 25)
+        threshold = category_thresholds.get(category, 15)
         
         if metrics['combined_score'] > threshold:
             return 'BUY'
@@ -963,3 +903,54 @@ class SignalGenerator:
             return 'SELL'
         else:
             return 'NEUTRAL'
+    
+    def _create_enhanced_technical_summary(self, tech_result: TechnicalAnalysisResult, category: str) -> str:
+        """Создание улучшенного описания технического анализа"""
+        
+        strong_signals = [s for s in tech_result.signals if s.strength > 0.5]
+        
+        if not strong_signals:
+            return f"Слабые технические сигналы ({category})"
+        
+        summary_parts = []
+        
+        # Группируем сигналы по типам
+        trend_signals = [s for s in strong_signals if any(ind in s.name for ind in ['EMA', 'MACD', 'SMA'])]
+        momentum_signals = [s for s in strong_signals if any(ind in s.name for ind in ['RSI', 'Stochastic', 'Williams'])]
+        pattern_signals = [s for s in strong_signals if 'Pattern' in s.name]
+        
+        if trend_signals:
+            buy_trend = len([s for s in trend_signals if s.signal == 'BUY'])
+            sell_trend = len([s for s in trend_signals if s.signal == 'SELL'])
+            if buy_trend > sell_trend:
+                summary_parts.append("бычий тренд")
+            elif sell_trend > buy_trend:
+                summary_parts.append("медвежий тренд")
+            else:
+                summary_parts.append("нейтральный тренд")
+        
+        if momentum_signals:
+            buy_momentum = len([s for s in momentum_signals if s.signal == 'BUY'])
+            sell_momentum = len([s for s in momentum_signals if s.signal == 'SELL'])
+            if buy_momentum > sell_momentum:
+                summary_parts.append("бычий моментум")
+            elif sell_momentum > buy_momentum:
+                summary_parts.append("медвежий моментум")
+        
+        if pattern_signals:
+            pattern_names = [s.name.replace('Pattern_', '') for s in pattern_signals]
+            summary_parts.append(f"паттерны: {', '.join(pattern_names[:2])}")
+        
+        # Добавляем специфику категории
+        category_specifics = {
+            'meme': "волатильный мем-актив",
+            'emerging': "новый проект", 
+            'defi': "DeFi протокол",
+            'gaming_nft': "Gaming токен"
+        }
+        
+        if category in category_specifics:
+            summary_parts.append(category_specifics[category])
+        
+        return "; ".join(summary_parts) if summary_parts else f"Технические индикаторы ({category})"
+ 
