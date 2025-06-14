@@ -20,6 +20,8 @@ from persistent_config_system import EnhancedTradingConfig as TradingConfig
 from bybit_api import BybitAPI
 from signal_generator import SignalGenerator
 from enhanced_telegram_bot import EnhancedTelegramBot
+from simple_tp_tracker import SimpleTakeProfitTracker
+
 
 # Настройка логирования
 logging.basicConfig(
@@ -42,6 +44,7 @@ class TelegramPolling:
         self.message_handler = message_handler
         self.offset = 0
         self.is_running = False
+        
         
     async def start_polling(self):
         """Запуск polling для получения сообщений"""
@@ -133,6 +136,7 @@ class EnhancedTradingBot:
         self.telegram_bot = EnhancedTelegramBot(self.config) # type: ignore
         self.is_running = False
         self.last_analysis_time = {}
+        self.tp_tracker = SimpleTakeProfitTracker(self.config, self.bybit_api)
         
         # ДОБАВЛЕНО: Инициализация polling
         self.telegram_polling = TelegramPolling(
@@ -147,7 +151,8 @@ class EnhancedTradingBot:
             'analysis_cycles': 0,
             'errors': 0,
             'messages_received': 0,  # ДОБАВЛЕНО
-            'commands_processed': 0   # ДОБАВЛЕНО
+            'commands_processed': 0,   # ДОБАВЛЕНО
+            'tp_tracking_started': 0
         }
         
     async def start(self):
@@ -164,6 +169,13 @@ class EnhancedTradingBot:
             logger.error("❌ Ошибка подключения к сервисам")
             return
         
+        try:
+            self.tp_tracker.load_results()
+            await self.tp_tracker.start_tracking()
+            logger.info("📊 TP трекер запущен")
+        except Exception as e:
+            logger.error(f"Ошибка запуска TP трекера: {e}")
+
         # Отправляем уведомление о запуске
         await self.telegram_bot.send_alert(
             f"🚀 Торговый бот запущен!\n📊 Мониторинг {len(self.config.TRADING_PAIRS)} торговых пар\n👥 Подключено {len(self.config.get_authorized_chats())} чатов\n\n💬 Теперь бот принимает команды!",
@@ -207,12 +219,20 @@ class EnhancedTradingBot:
         
         # Останавливаем polling
         await self.telegram_polling.stop_polling()
+
+        # Останавливаем TP трекер
+        try:
+            await self.tp_tracker.stop_tracking()
+            logger.info("📊 TP трекер остановлен")
+        except Exception as e:
+            logger.error(f"Ошибка остановки TP трекера: {e}")
         
         # Отправляем статистику за день
         stats_message = f"""📊 Статистика за сессию:
 🔄 Циклов анализа: {self.daily_stats['analysis_cycles']}
 📈 Сигналов сгенерировано: {self.daily_stats['signals_generated']}
 📤 Сигналов отправлено: {self.daily_stats['signals_sent']}
+📊 TP отслеживаний: {self.daily_stats['tp_tracking_started']}
 📱 Сообщений получено: {self.daily_stats['messages_received']}
 ⌨️ Команд обработано: {self.daily_stats['commands_processed']}
 ❌ Ошибок: {self.daily_stats['errors']}"""
@@ -241,8 +261,18 @@ class EnhancedTradingBot:
                 args = parts[1:] if len(parts) > 1 else []
                 
                 logger.info(f"🔧 Обработка команды /{command} от {chat_id}")
+
+                # Обработка команд TP трекера
+                if command == 'tp_stats':
+                    await self._handle_tp_stats_command(chat_id)
+                    return
+                elif command == 'tp_active':
+                    await self._handle_tp_active_command(chat_id)
+                    return
                 
                 await self.telegram_bot.handle_command(chat_id, command, args)
+
+                
             
             # Обработка запросов анализа (например, "BTC" или "анализ ETHUSDT")
             elif text.upper() in self.config.TRADING_PAIRS:
@@ -432,6 +462,13 @@ class EnhancedTradingBot:
                         if successful_sends > 0:
                             signals_sent += successful_sends
                             self.daily_stats['signals_sent'] += successful_sends
+                            try:
+                                signal_id = self.tp_tracker.add_signal_for_tracking(signal)
+                                if signal_id:
+                                    self.daily_stats['tp_tracking_started'] += 1
+                                    logger.info(f"📊 Начато отслеживание TP для {signal_id}")
+                            except Exception as e:
+                                logger.error(f"Ошибка добавления TP отслеживания: {e}")
                             logger.info(f"✅ Сигнал {signal.signal_type} для {symbol} отправлен в {successful_sends} чатов")
                         else:
                             logger.warning(f"⚠️ Сигнал для {symbol} не был отправлен ни в один чат")
@@ -603,6 +640,59 @@ class EnhancedTradingBot:
                 await self.telegram_bot._send_message(error_message, chat_id)
             else:
                 await self.telegram_bot.send_alert(error_message, "ERROR", admin_only=True)
+
+    async def _handle_tp_stats_command(self, chat_id: str):
+            """Обработка команды /tp_stats"""
+            try:
+                if not self.config.is_chat_authorized(chat_id):
+                    await self.telegram_bot.send_subscription_info(chat_id)
+                    return
+                
+                stats_message = self.tp_tracker.format_statistics_message()
+                await self.telegram_bot._send_message(stats_message, chat_id)
+                
+            except Exception as e:
+                logger.error(f"Ошибка обработки /tp_stats: {e}")
+                await self.telegram_bot._send_message("❌ Ошибка получения статистики TP", chat_id)
+        
+    async def _handle_tp_active_command(self, chat_id: str):
+        """Обработка команды /tp_active"""
+        try:
+            if not self.config.is_chat_authorized(chat_id):
+                await self.telegram_bot.send_subscription_info(chat_id)
+                return
+            
+            active_signals = self.tp_tracker.tracking_signals
+            
+            if not active_signals:
+                message = "📊 <b>Активные отслеживания TP</b>\n\n❌ Нет активных отслеживаний"
+            else:
+                message = f"📊 <b>Активные отслеживания TP</b>\n\n👀 Отслеживается: {len(active_signals)} сигналов\n\n"
+                
+                for signal_id, signal_data in list(active_signals.items())[:5]:
+                    elapsed = datetime.now() - signal_data.start_time
+                    elapsed_str = self._format_duration(elapsed)
+                    message += f"• {signal_data.symbol} {signal_data.signal_type} - {elapsed_str}\n"
+                
+                if len(active_signals) > 5:
+                    message += f"... и еще {len(active_signals) - 5} сигналов"
+            
+            await self.telegram_bot._send_message(message, chat_id)
+            
+        except Exception as e:
+            logger.error(f"Ошибка обработки /tp_active: {e}")
+            await self.telegram_bot._send_message("❌ Ошибка получения активных отслеживаний", chat_id)
+    
+    def _format_duration(self, duration):
+        """Форматирование длительности"""
+        total_seconds = int(duration.total_seconds())
+        hours = total_seconds // 3600
+        minutes = (total_seconds % 3600) // 60
+        
+        if hours > 0:
+            return f"{hours}ч {minutes}м"
+        else:
+            return f"{minutes}м"
 
 def signal_handler(signum, frame):
     """Обработчик сигналов системы"""
