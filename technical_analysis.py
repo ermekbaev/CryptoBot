@@ -250,8 +250,9 @@ class TechnicalAnalyzer:
                         
                     elif isinstance(macd_data, pd.Series) and len(macd_data) > 1:
                         # Если FINTA возвращает только Series (старая версия)
-                        macd_value = macd_data.iloc[-1]
-                        prev_macd = macd_data.iloc[-2]
+                        macd_value = float(macd_data.iloc[-1]) # type: ignore
+                        prev_macd = float(macd_data.iloc[-2]) # type: ignore
+
                         
                         # Упрощенная логика для Series
                         if macd_value > 0 and prev_macd <= 0:
@@ -1012,7 +1013,7 @@ class TechnicalAnalyzer:
             high_close = np.abs(df['high'] - df['close'].shift())
             low_close = np.abs(df['low'] - df['close'].shift())
             
-            true_range = pd.concat([high_low, high_close, low_close], axis=1).max(axis=1)
+            true_range = pd.concat([high_low, high_close, low_close], axis=1).max(axis=1) # type: ignore
             atr = true_range.rolling(14).mean().iloc[-1]
             
             if pd.isna(atr) or atr <= 0:

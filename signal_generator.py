@@ -619,7 +619,7 @@ class SignalGenerator:
             high_close = np.abs(klines_data['high'] - klines_data['close'].shift())
             low_close = np.abs(klines_data['low'] - klines_data['close'].shift())
             
-            true_range = pd.concat([high_low, high_close, low_close], axis=1).max(axis=1)
+            true_range = pd.concat([high_low, high_close, low_close], axis=1).max(axis=1) # type: ignore
             atr = true_range.rolling(14).mean().iloc[-1]
             
             if pd.isna(atr) or atr <= 0:
@@ -954,3 +954,82 @@ class SignalGenerator:
         
         return "; ".join(summary_parts) if summary_parts else f"Технические индикаторы ({category})"
  
+    def _create_enhanced_fundamental_summary(self, fund_result: FundamentalAnalysisResult, category: str) -> str:
+        """Создание улучшенного описания фундаментального анализа"""
+        
+        if not fund_result.signals:
+            return f"Нет фундаментальных данных ({category})"
+        
+        summary_parts = []
+        
+        # Группируем сигналы по важности
+        high_impact_signals = [s for s in fund_result.signals if s.impact == 'HIGH']
+        medium_impact_signals = [s for s in fund_result.signals if s.impact == 'MEDIUM']
+        
+        # Анализируем сигналы высокого влияния
+        if high_impact_signals:
+            buy_high = len([s for s in high_impact_signals if s.signal == 'BUY'])
+            sell_high = len([s for s in high_impact_signals if s.signal == 'SELL'])
+            
+            if buy_high > sell_high:
+                summary_parts.append("сильные позитивные факторы")
+            elif sell_high > buy_high:
+                summary_parts.append("сильные негативные факторы")
+            else:
+                summary_parts.append("смешанные сигналы")
+        
+        # Анализируем специфичные индикаторы
+        volume_signals = [s for s in fund_result.signals if 'Volume' in s.name]
+        funding_signals = [s for s in fund_result.signals if 'Funding' in s.name]
+        oi_signals = [s for s in fund_result.signals if 'Interest' in s.name]
+        
+        if volume_signals:
+            vol_signal = volume_signals[0]
+            if vol_signal.signal == 'BUY':
+                summary_parts.append("высокий объем")
+            elif vol_signal.signal == 'SELL':
+                summary_parts.append("низкий объем")
+        
+        if funding_signals:
+            funding_signal = funding_signals[0]
+            if funding_signal.signal == 'BUY':
+                summary_parts.append("низкая ставка финансирования")
+            elif funding_signal.signal == 'SELL':
+                summary_parts.append("высокая ставка финансирования")
+        
+        if oi_signals:
+            oi_signal = oi_signals[0]
+            if oi_signal.signal == 'BUY':
+                summary_parts.append("растущий открытый интерес")
+            elif oi_signal.signal == 'SELL':
+                summary_parts.append("падающий открытый интерес")
+        
+        # Добавляем настроение рынка
+        if fund_result.market_sentiment != 'NEUTRAL':
+            sentiment_map = {
+                'BULLISH': 'бычье настроение',
+                'BEARISH': 'медвежье настроение'
+            }
+            if fund_result.market_sentiment in sentiment_map:
+                summary_parts.append(sentiment_map[fund_result.market_sentiment])
+        
+        # Добавляем категориальную специфику
+        category_specifics = {
+            'major': "стабильные фундаментальные показатели",
+            'defi': "DeFi метрики",
+            'layer1': "экосистемные показатели", 
+            'meme': "спекулятивные факторы",
+            'gaming_nft': "игровые метрики",
+            'emerging': "ранние показатели",
+            'altcoins': "альткоин метрики"
+        }
+        
+        if not summary_parts and category in category_specifics:
+            summary_parts.append(category_specifics[category])
+        
+        # Формируем итоговое описание
+        if summary_parts:
+            result = "; ".join(summary_parts[:3])  # Максимум 3 элемента
+            return result.capitalize()
+        else:
+            return f"Базовый фундаментальный анализ ({category})"

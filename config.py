@@ -40,27 +40,51 @@ class TradingConfig:
             self.TRADING_PAIRS = [pair.strip() for pair in trading_pairs_env.split(',')]
         else:
             self.TRADING_PAIRS = [
-                # Топ крипто (основные)
-                'BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'XRPUSDT', 'ADAUSDT', 'SOLUSDT',
+                # ===== ТОП КРИПТОВАЛЮТЫ (проверенные временем) =====
+                'BTCUSDT',      # Bitcoin - цифровое золото
+                'ETHUSDT',      # Ethereum - лидер смарт-контрактов
+                'BNBUSDT',      # Binance Coin - биржевой токен #1
+                'XRPUSDT',      # Ripple - банковские решения
+                'ADAUSDT',      # Cardano - академический подход
+                'SOLUSDT',      # Solana - высокая производительность
                 
-                # DeFi токены
-                'LINKUSDT', 'DOTUSDT', 'UNIUSDT', 'AAVEUSDT', 'MKRUSDT', 'SUSHIUSDT',
+                # ===== DEFI ЛИДЕРЫ (топ DeFi протоколы) =====
+                'LINKUSDT',     # Chainlink - оракулы №1
+                'UNIUSDT',      # Uniswap - ведущий DEX
+                'AAVEUSDT',     # Aave - лидер DeFi кредитования
+                'MKRUSDT',      # Maker - создатель DAI
+                'CRVUSDT',      # Curve - стейблкоин ликвидность
+                'GRTUSDT',      # The Graph - Web3 индексирование данных
+                'COMPUSDT',     # Compound - автономное кредитование  
+                'SNXUSDT',      # Synthetix - синтетические активы
+                'YFIUSDT',      # Yearn Finance - yield оптимизация
+                '1INCHUSDT',    # 1inch - DEX агрегатор
+                'SUSHIUSDT',    # SushiSwap - мультичейн DEX
+
+                # ===== LAYER 1 БЛОКЧЕЙНЫ (проверенные сети) =====
+                'DOTUSDT',      # Polkadot - парачейны
+                'AVAXUSDT',     # Avalanche - быстрые транзакции
+                'MATICUSDT',    # Polygon - L2 для Ethereum
+                'ATOMUSDT',     # Cosmos - интернет блокчейнов
+                'NEARUSDT',     # Near Protocol - масштабируемая сеть
+                'FTMUSDT',      # Fantom - DAG платформа
+                'XTZUSDT',      # Tezos - самообновляемая сеть
+                'ALGOUSDT',     # Algorand - чистый PoS
+
+                # ===== ТРАДИЦИОННЫЕ АЛЬТКОИНЫ (проверенные временем) =====
+                'LTCUSDT',      # Litecoin - цифровое серебро
+                'BCHUSDT',      # Bitcoin Cash - быстрые платежи
+                'ETCUSDT',      # Ethereum Classic - оригинальный ETH
+                'XLMUSDT',      # Stellar - трансграничные платежи
+                'TRXUSDT',      # Tron - контент платформа
+                'EOSUSDT',      # EOS - смарт-контракты
                 
-                # Layer 1 блокчейны
-                'AVAXUSDT', 'MATICUSDT', 'FTMUSDT', 'ATOMUSDT', 'NEARUSDT', 'ALGOUSDT',
-                
-                # Мемы и популярные альткоины
-                'DOGEUSDT', 'SHIBUSDT', 'PEPEUSDT', '1000PEPEUSDT', 'FLOKIUSDT', 'APEUSDT', 'SENDUSDT',
-                
-                # Новые перспективные проекты
-                'CETUSUSDT', 'OPUSDT', 'SLERFUSDT', 'SXTUSDT', 'APTUSDT', 'APEUSDT',
-                'MEMEUSDT', 'AUCTIONUSDT', 'TIAUSDT', 'FLMUSDT', 'CVCUSDT', 'INITUSDT',
-                'SUIUSDT', 'CRVUSDT', 'LTCUSDT', 'BCHUSDT', 'ETCUSDT', 'XLMUSDT',
-                'VETUSDT', 'ICPUSDT', 'FILUSDT', 'TRXUSDT', 'EOSUSDT', 'THETAUSDT',
-                'KLAYUSDT', 'AXSUSDT', 'SANDUSDT', 'MANAUSDT', 'GALAUSDT', 'ENJUSDT',
-                'CHZUSDT', 'ARBUSDT', 'LDOUSDT', 'STXUSDT', 'INJUSDT', 'RUNEUSDT'
+                # ===== УТИЛИТАРНЫЕ ТОКЕНЫ (реальное применение) =====
+                'VETUSDT',      # VeChain - supply chain
+                'ICPUSDT',      # Internet Computer - веб3 вычисления
+                'FILUSDT',      # Filecoin - децентрализованное хранение
+                'THETAUSDT',    # Theta - видео стриминг
             ]
-        
         # ИСПРАВЛЕНО: Убрали лишний отступ!
         # Категоризация торговых пар для умного анализа
         self.PAIR_CATEGORIES = {
@@ -68,24 +92,14 @@ class TradingConfig:
                 'BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'XRPUSDT', 'ADAUSDT', 'SOLUSDT'
             ],
             'defi': [
-                'LINKUSDT', 'UNIUSDT', 'AAVEUSDT', 'MKRUSDT', 'SUSHIUSDT', 'CRVUSDT'
+                'LINKUSDT', 'UNIUSDT', 'AAVEUSDT', 'MKRUSDT', 'SUSHIUSDT', 'CRVUSDT', 
+                'GRTUSDT', 'COMPUSDT', 'SNXUSDT', 'YFIUSDT', '1INCHUSDT'
             ],
             'layer1': [
                 'DOTUSDT', 'AVAXUSDT', 'MATICUSDT', 'FTMUSDT', 'ATOMUSDT', 'NEARUSDT',
                 'APTUSDT', 'SUIUSDT', 'ALGOUSDT', 'TRXUSDT', 'EOSUSDT', 'THETAUSDT',
-                'KLAYUSDT', 'STXUSDT'
+                'KLAYUSDT', 'STXUSDT', 'XTZUSDT', 'ALGOUSDT'
             ],
-            'meme': [
-                'DOGEUSDT', 'SHIBUSDT', 'PEPEUSDT', '1000PEPEUSDT', 'FLOKIUSDT', 'MEMEUSDT'
-            ],
-            'gaming_nft': [
-                'APEUSDT', 'SANDUSDT', 'MANAUSDT', 'GALAUSDT', 'ENJUSDT', 'CHZUSDT', 'AXSUSDT'
-            ],
-            'emerging': [
-                'CETUSUSDT', 'SLERFUSDT', 'SXTUSDT', 'AUCTIONUSDT', 'TIAUSDT', 
-                'FLMUSDT', 'CVCUSDT', 'INITUSDT', 'SANDUSDT'
-            ],
-            # ДОБАВЛЕНО: Категория для остальных популярных монет
             'altcoins': [
                 'LTCUSDT', 'BCHUSDT', 'ETCUSDT', 'XLMUSDT', 'VETUSDT', 'ICPUSDT',
                 'FILUSDT', 'INJUSDT', 'RUNEUSDT', 'LDOUSDT', 'ARBUSDT', 'OPUSDT'
@@ -104,13 +118,10 @@ class TradingConfig:
         # }
 
         self.MIN_VOLUMES_BY_CATEGORY = {
-            'major':       500000000,   # Снижаем с 1B — 1B слишком жёстко
-            'defi':        50000000,
-            'layer1':      100000000,
-            'meme':        20000000,    # Мемы часто волатильны, но объём ниже
-            'gaming_nft':  4000000,     # <- APE, SAND, MANA и др. теперь проходят
-            'emerging':    3000000,     # Новые токены с низким объемом, но потенциалом
-            'altcoins':    10000000
+            'major': 1000000000,        # 1B для топовых (строже)
+            'defi': 150000000,          # 150M для DeFi (строже)
+            'layer1': 200000000,        # 200M для Layer 1 (строже)
+            'altcoins': 100000000       # 100M для альткоинов (строже)
         }
 
     
@@ -143,30 +154,30 @@ class TradingConfig:
         self.SUBSCRIPTION_TIERS = {
             'FREE': {
                 'max_signals_per_day': 3,
-                'categories_allowed': ['major'],
+                'categories_allowed': ['major'],  
                 'features': ['basic_signals'],
                 'cooldown_minutes': 120
             },
             'BASIC': {
-                'max_signals_per_day': 10,
-                'categories_allowed': ['major', 'defi', 'layer1', 'altcoins'],
+                'max_signals_per_day': 8,        
+                'categories_allowed': ['major', 'defi'],  # DeFi теперь включает больше токенов
                 'features': ['basic_signals', 'technical_analysis'],
-                'cooldown_minutes': 60
+                'cooldown_minutes': 90           
             },
             'PREMIUM': {
-                'max_signals_per_day': 25,
-                'categories_allowed': ['major', 'defi', 'layer1', 'gaming_nft', 'altcoins'],
+                'max_signals_per_day': 15,       
+                'categories_allowed': ['major', 'defi', 'layer1'],  
                 'features': ['basic_signals', 'technical_analysis', 'fundamental_analysis'],
-                'cooldown_minutes': 30
+                'cooldown_minutes': 60           
             },
             'VIP': {
-                'max_signals_per_day': -1,  # Безлимитно
-                'categories_allowed': ['major', 'defi', 'layer1', 'meme', 'gaming_nft', 'emerging', 'altcoins'],
+                'max_signals_per_day': 25,       
+                'categories_allowed': ['major', 'defi', 'layer1', 'altcoins'],  
                 'features': ['basic_signals', 'technical_analysis', 'fundamental_analysis', 'priority_support'],
-                'cooldown_minutes': 15
+                'cooldown_minutes': 30           
             }
         }
-
+        
         # Настройка пользователей/чатов
         self.CHAT_SUBSCRIPTIONS = self._load_chat_subscriptions(all_chats, admin_chat)
         

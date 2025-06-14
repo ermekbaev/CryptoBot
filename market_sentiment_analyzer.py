@@ -30,7 +30,7 @@ class MarketSentimentAnalyzer:
         self.last_analysis = None
         self.btc_cache = {}
         
-    def analyze_market_sentiment(self, btc_data: Dict, eth_data: Dict = None) -> MarketSentiment:
+    def analyze_market_sentiment(self, btc_data: Dict, eth_data: Dict = None) -> MarketSentiment: # type: ignore
         """Основной метод анализа настроения рынка"""
         
         try:
@@ -41,13 +41,13 @@ class MarketSentimentAnalyzer:
             eth_analysis = self._analyze_eth_sentiment(eth_data) if eth_data else None
             
             # Определяем общее настроение
-            overall_sentiment = self._determine_overall_sentiment(btc_analysis, eth_analysis)
+            overall_sentiment = self._determine_overall_sentiment(btc_analysis, eth_analysis) # type: ignore
             
             # Определяем уровень риска
-            risk_level = self._calculate_risk_level(btc_analysis, eth_analysis)
+            risk_level = self._calculate_risk_level(btc_analysis, eth_analysis) # type: ignore
             
             # Определяем сезон альткоинов
-            altcoin_season = self._detect_altcoin_season(btc_analysis, eth_analysis)
+            altcoin_season = self._detect_altcoin_season(btc_analysis, eth_analysis) # type: ignore
             
             # Оценка страха/жадности
             fear_greed = self._estimate_fear_greed(btc_analysis)
@@ -322,7 +322,7 @@ class MarketSentimentAnalyzer:
         
         return analysis
     
-    def _determine_overall_sentiment(self, btc_analysis: Dict, eth_analysis: Dict = None) -> Dict:
+    def _determine_overall_sentiment(self, btc_analysis: Dict, eth_analysis: Dict = None) -> Dict: # type: ignore
         """Определение общего настроения рынка"""
         
         sentiment_score = 0.0
@@ -391,7 +391,7 @@ class MarketSentimentAnalyzer:
             'factors': factors
         }
     
-    def _calculate_risk_level(self, btc_analysis: Dict, eth_analysis: Dict = None) -> str:
+    def _calculate_risk_level(self, btc_analysis: Dict, eth_analysis: Dict = None) -> str: # type: ignore
         """Расчет уровня риска для торговли"""
         
         risk_score = 0
@@ -430,7 +430,7 @@ class MarketSentimentAnalyzer:
         else:
             return 'LOW'
     
-    def _detect_altcoin_season(self, btc_analysis: Dict, eth_analysis: Dict = None) -> bool:
+    def _detect_altcoin_season(self, btc_analysis: Dict, eth_analysis: Dict = None) -> bool: # type: ignore
         """Определение сезона альткоинов"""
         
         # Упрощенная логика определения altcoin season
