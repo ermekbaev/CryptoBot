@@ -1,6 +1,6 @@
 {
-  "last_updated": "2025-06-14T01:00:42.487839",
-  "version": "1.0",
+  "last_updated": "2025-06-15T21:02:53.803785",
+  "version": "2.0",
   "subscriptions": {
     "774758034": {
       "tier": "VIP",
@@ -21,8 +21,8 @@
       "tier": "VIP",
       "is_admin": false,
       "active": true,
-      "signals_sent_today": 380,
-      "last_signal_time": "2025-06-14T01:00:42.484840",
+      "signals_sent_today": 555,
+      "last_signal_time": "2025-06-15T21:02:53.798711",
       "allowed_features": [
         "basic_signals",
         "technical_analysis"

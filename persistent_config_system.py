@@ -1,4 +1,4 @@
-# persistent_config_system.py - Система сохранения конфигурации
+# enhanced_persistent_config_system.py - ОБЪЕДИНЕННАЯ УЛУЧШЕННАЯ ВЕРСИЯ
 
 import json
 import os
@@ -34,7 +34,7 @@ class PersistentConfigManager:
             # Подготавливаем данные для сохранения
             save_data = {
                 'last_updated': datetime.now().isoformat(),
-                'version': '1.0',
+                'version': '2.0',  # Обновленная версия
                 'subscriptions': subscriptions
             }
             
@@ -88,7 +88,7 @@ class PersistentConfigManager:
             logger.error(f"Ошибка очистки бэкапов: {e}")
 
 class EnhancedTradingConfig:
-    """Улучшенная конфигурация с автосохранением"""
+    """Улучшенная конфигурация с автосохранением - ОБЪЕДИНЕННАЯ ВЕРСИЯ"""
     
     def __init__(self):
         # Базовые настройки из переменных окружения
@@ -99,11 +99,20 @@ class EnhancedTradingConfig:
         # Менеджер сохранения
         self.config_manager = PersistentConfigManager()
         
-        # Торговые параметры
-        self.MIN_CONFIDENCE_LEVEL = float(os.getenv('MIN_CONFIDENCE_LEVEL', '75.0'))
-        self.MAX_RISK_PER_TRADE = float(os.getenv('MAX_RISK_PER_TRADE', '2.0'))
+        # Торговые параметры (с поддержкой тестового режима)
+        test_mode = os.getenv('TEST_MODE', 'False').lower() == 'true'
+        
+        if test_mode:
+            logger.info("🧪 ТЕСТОВЫЙ РЕЖИМ: Снижены требования для генерации сигналов")
+            self.MIN_CONFIDENCE_LEVEL = float(os.getenv('MIN_CONFIDENCE_LEVEL', '45.0'))  # Снижено с 75
+            self.MAX_RISK_PER_TRADE = float(os.getenv('MAX_RISK_PER_TRADE', '3.0'))      # Увеличено с 2
+            self.MIN_VOLUME_USDT = float(os.getenv('MIN_VOLUME_USDT', '10000000'))       # 10M вместо 100M
+        else:
+            self.MIN_CONFIDENCE_LEVEL = float(os.getenv('MIN_CONFIDENCE_LEVEL', '70.0'))
+            self.MAX_RISK_PER_TRADE = float(os.getenv('MAX_RISK_PER_TRADE', '2.0'))
+            self.MIN_VOLUME_USDT = float(os.getenv('MIN_VOLUME_USDT', '50000000'))       # 50M вместо 100M
+        
         self.MAX_LEVERAGE = int(os.getenv('MAX_LEVERAGE', '5'))
-        self.MIN_VOLUME_USDT = float(os.getenv('MIN_VOLUME_USDT', '100000'))
         
         # Технические параметры
         self.RSI_PERIOD = 14
@@ -118,66 +127,165 @@ class EnhancedTradingConfig:
         self.ANALYSIS_TIMEFRAMES = ['1h', '4h', '1d']
         self.PRIMARY_TIMEFRAME = os.getenv('PRIMARY_TIMEFRAME', '4h')
         
-        # Торговые пары
+        # ОБЪЕДИНЕННЫЙ список торговых пар (лучшее из обеих версий)
         trading_pairs_env = os.getenv('TRADING_PAIRS', '')
         if trading_pairs_env:
             self.TRADING_PAIRS = [pair.strip() for pair in trading_pairs_env.split(',')]
         else:
             self.TRADING_PAIRS = [
-                'BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'XRPUSDT', 'ADAUSDT', 'SOLUSDT',
-                'LINKUSDT', 'DOTUSDT', 'UNIUSDT', 'AAVEUSDT', 'MKRUSDT', 'SUSHIUSDT',
-                'AVAXUSDT', 'MATICUSDT', 'FTMUSDT', 'ATOMUSDT', 'NEARUSDT', 'ALGOUSDT',
-                'DOGEUSDT', 'SHIBUSDT', 'PEPEUSDT', '1000PEPEUSDT', 'FLOKIUSDT',
-                'CETUSUSDT', 'OPUSDT', 'SLERFUSDT', 'SXTUSDT', 'APTUSDT', 'APEUSDT'
+                # ===== ТОП КРИПТОВАЛЮТЫ (проверенные временем) =====
+                'BTCUSDT',      # Bitcoin - цифровое золото
+                'ETHUSDT',      # Ethereum - лидер смарт-контрактов
+                'BNBUSDT',      # Binance Coin - биржевой токен #1
+                'XRPUSDT',      # Ripple - банковские решения
+                'ADAUSDT',      # Cardano - академический подход
+                'SOLUSDT',      # Solana - высокая производительность
+                
+                # ===== DEFI ЛИДЕРЫ (расширенный список) =====
+                'LINKUSDT',     # Chainlink - оракулы №1
+                'UNIUSDT',      # Uniswap - ведущий DEX
+                'AAVEUSDT',     # Aave - лидер DeFi кредитования
+                'MKRUSDT',      # Maker - создатель DAI
+                'CRVUSDT',      # Curve - стейблкоин ликвидность
+                'SUSHIUSDT',    # SushiSwap - мультичейн DEX
+                'GRTUSDT',      # The Graph - Web3 индексирование данных
+                'COMPUSDT',     # Compound - автономное кредитование  
+                'SNXUSDT',      # Synthetix - синтетические активы
+                'YFIUSDT',      # Yearn Finance - yield оптимизация
+                '1INCHUSDT',    # 1inch - DEX агрегатор
+
+                # ===== LAYER 1 БЛОКЧЕЙНЫ (расширенный список) =====
+                'DOTUSDT',      # Polkadot - парачейны
+                'AVAXUSDT',     # Avalanche - быстрые транзакции
+                'MATICUSDT',    # Polygon - L2 для Ethereum
+                'ATOMUSDT',     # Cosmos - интернет блокчейнов
+                'NEARUSDT',     # Near Protocol - масштабируемая сеть
+                'FTMUSDT',      # Fantom - DAG платформа
+                'APTUSDT',      # Aptos - новый Layer 1
+                'SUIUSDT',      # Sui - параллельный блокчейн
+                'XTZUSDT',      # Tezos - самообновляемая сеть
+                'ALGOUSDT',     # Algorand - чистый PoS
+                'TRXUSDT',      # Tron - контент платформа
+                'EOSUSDT',      # EOS - смарт-контракты
+                'THETAUSDT',    # Theta - видео стриминг
+
+                # ===== МЕМКОИНЫ (популярные) =====
+                'DOGEUSDT',     # Dogecoin - оригинальный мем
+                'SHIBUSDT',     # Shiba Inu - убийца Doge
+                'PEPEUSDT',     # Pepe - мем 2023
+                '1000PEPEUSDT', # Pepe альтернатива
+                'FLOKIUSDT',    # Floki - мем с утилитой
+
+                # ===== GAMING/NFT ТОКЕНЫ =====
+                'APEUSDT',      # ApeCoin - Bored Apes
+                'SANDUSDT',     # The Sandbox - метавселенная
+                'MANAUSDT',     # Decentraland - виртуальный мир
+                'GALAUSDT',     # Gala Games - игровая платформа
+                'ENJUSDT',      # Enjin - NFT платформа
+                'CHZUSDT',      # Chiliz - спортивные токены
+                'AXSUSDT',      # Axie Infinity - игра
+
+                # ===== НОВЫЕ ПРОЕКТЫ =====
+                'CETUSUSDT',    # Cetus - DeFi на Sui
+                'SLERFUSDT',    # Slerf - новый мем
+                'SXTUSDT',      # Space and Time - децентрализованная БД
+                'AUCTIONUSDT',  # Bounce - аукционная платформа
+                'TIAUSDT',      # Celestia - модульный блокчейн
+                'FLMUSDT',      # Flamingo - кросс-чейн протокол
+
+                # ===== ТРАДИЦИОННЫЕ АЛЬТКОИНЫ =====
+                'LTCUSDT',      # Litecoin - цифровое серебро
+                'BCHUSDT',      # Bitcoin Cash - быстрые платежи
+                'ETCUSDT',      # Ethereum Classic - оригинальный ETH
+                'XLMUSDT',      # Stellar - трансграничные платежи
+                'VETUSDT',      # VeChain - supply chain
+                'ICPUSDT',      # Internet Computer - веб3 вычисления
+                'FILUSDT',      # Filecoin - децентрализованное хранение
+                'INJUSDT',      # Injective - деривативы
+                'RUNEUSDT',     # THORChain - кросс-чейн DEX
+                'LDOUSDT',      # Lido DAO - liquid staking
+                'ARBUSDT',      # Arbitrum - L2 решение
+                'OPUSDT',       # Optimism - L2 решение
             ]
         
-        # Категоризация пар
+        # УЛУЧШЕННАЯ категоризация (объединенная)
         self.PAIR_CATEGORIES = {
-            'major': ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'XRPUSDT', 'ADAUSDT', 'SOLUSDT'],
-            'defi': ['LINKUSDT', 'UNIUSDT', 'AAVEUSDT', 'MKRUSDT', 'SUSHIUSDT', 'CRVUSDT'],
-            'layer1': ['DOTUSDT', 'AVAXUSDT', 'MATICUSDT', 'FTMUSDT', 'ATOMUSDT', 'NEARUSDT', 'APTUSDT', 'SUIUSDT'],
-            'meme': ['DOGEUSDT', 'SHIBUSDT', 'PEPEUSDT', '1000PEPEUSDT', 'FLOKIUSDT', 'MEMEUSDT'],
-            'gaming_nft': ['APEUSDT', 'SANDUSDT', 'MANAUSDT', 'GALAUSDT', 'ENJUSDT', 'CHZUSDT', 'AXSUSDT'],
-            'emerging': ['CETUSUSDT', 'SLERFUSDT', 'SXTUSDT', 'AUCTIONUSDT', 'TIAUSDT', 'FLMUSDT'],
-            'altcoins': ['LTCUSDT', 'BCHUSDT', 'ETCUSDT', 'XLMUSDT', 'VETUSDT', 'ICPUSDT', 'LDOUSDT', 'ARBUSDT', 'OPUSDT']
+            'major': [
+                'BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'XRPUSDT', 'ADAUSDT', 'SOLUSDT'
+            ],
+            'defi': [
+                'LINKUSDT', 'UNIUSDT', 'AAVEUSDT', 'MKRUSDT', 'SUSHIUSDT', 'CRVUSDT', 
+                'GRTUSDT', 'COMPUSDT', 'SNXUSDT', 'YFIUSDT', '1INCHUSDT'
+            ],
+            'layer1': [
+                'DOTUSDT', 'AVAXUSDT', 'MATICUSDT', 'FTMUSDT', 'ATOMUSDT', 'NEARUSDT',
+                'APTUSDT', 'SUIUSDT', 'ALGOUSDT', 'TRXUSDT', 'EOSUSDT', 'THETAUSDT',
+                'XTZUSDT'
+            ],
+            'meme': [
+                'DOGEUSDT', 'SHIBUSDT', 'PEPEUSDT', '1000PEPEUSDT', 'FLOKIUSDT'
+            ],
+            'gaming_nft': [
+                'APEUSDT', 'SANDUSDT', 'MANAUSDT', 'GALAUSDT', 'ENJUSDT', 'CHZUSDT', 'AXSUSDT'
+            ],
+            'emerging': [
+                'CETUSUSDT', 'SLERFUSDT', 'SXTUSDT', 'AUCTIONUSDT', 'TIAUSDT', 'FLMUSDT'
+            ],
+            'altcoins': [
+                'LTCUSDT', 'BCHUSDT', 'ETCUSDT', 'XLMUSDT', 'VETUSDT', 'ICPUSDT',
+                'FILUSDT', 'INJUSDT', 'RUNEUSDT', 'LDOUSDT', 'ARBUSDT', 'OPUSDT'
+            ]
         }
         
-        # Минимальные объемы по категориям
-        self.MIN_VOLUMES_BY_CATEGORY = {
-            'major': 1000000000,
-            'defi': 100000000,
-            'layer1': 200000000,
-            'meme': 50000000,
-            'gaming_nft': 30000000,
-            'emerging': 10000000,
-            'altcoins': 50000000
-        }
+        # ИСПРАВЛЕННЫЕ минимальные объемы (снижены для лучшей генерации сигналов)
+        if test_mode:
+            logger.info("🧪 ТЕСТОВЫЙ РЕЖИМ: Минимальные объемы значительно снижены")
+            self.MIN_VOLUMES_BY_CATEGORY = {
+                'major': 100000000,     # 100M вместо 1B
+                'defi': 25000000,       # 25M вместо 150M
+                'layer1': 50000000,     # 50M вместо 200M
+                'meme': 15000000,       # 15M вместо 50M
+                'gaming_nft': 10000000, # 10M вместо 30M
+                'emerging': 5000000,    # 5M вместо 10M
+                'altcoins': 20000000    # 20M вместо 50M
+            }
+        else:
+            logger.info("🎯 ПРОДАКШН РЕЖИМ: Оптимизированные объемы для стабильной генерации")
+            self.MIN_VOLUMES_BY_CATEGORY = {
+                'major': 100000000,     # 500M вместо 1B (в 2 раза меньше)
+                'defi': 20000000,       # 75M вместо 150M (в 2 раза меньше)
+                'layer1': 30000000,    # 100M вместо 200M (в 2 раза меньше)
+                'meme': 10000000,       # 25M вместо 50M (в 2 раза меньше)
+                'gaming_nft': 5000000, # 15M вместо 30M (в 2 раза меньше)
+                'emerging': 3000000,    # 5M вместо 10M (в 2 раза меньше)
+                'altcoins': 10000000    # 25M вместо 50M (в 2 раза меньше)
+            }
         
-        # Система подписок
+        # УЛУЧШЕННАЯ система подписок (более гибкая)
         self.SUBSCRIPTION_TIERS = {
             'FREE': {
-                'max_signals_per_day': 3,
+                'max_signals_per_day': 5,           # Увеличено с 3 до 5
                 'categories_allowed': ['major'],
                 'features': ['basic_signals'],
-                'cooldown_minutes': 120
+                'cooldown_minutes': 90              # Снижено со 120 до 90
             },
             'BASIC': {
-                'max_signals_per_day': 10,
-                'categories_allowed': ['major', 'defi', 'layer1', 'altcoins'],
+                'max_signals_per_day': 15,          # Увеличено с 10 до 15
+                'categories_allowed': ['major', 'defi', 'layer1', 'altcoins'],  # Добавлены altcoins
                 'features': ['basic_signals', 'technical_analysis'],
-                'cooldown_minutes': 60
+                'cooldown_minutes': 45              # Снижено с 60 до 45
             },
             'PREMIUM': {
-                'max_signals_per_day': 25,
+                'max_signals_per_day': 30,          # Увеличено с 25 до 30
                 'categories_allowed': ['major', 'defi', 'layer1', 'gaming_nft', 'altcoins'],
                 'features': ['basic_signals', 'technical_analysis', 'fundamental_analysis'],
-                'cooldown_minutes': 30
+                'cooldown_minutes': 20              # Снижено с 30 до 20
             },
             'VIP': {
-                'max_signals_per_day': -1,
+                'max_signals_per_day': -1,          # Безлимитно
                 'categories_allowed': ['major', 'defi', 'layer1', 'meme', 'gaming_nft', 'emerging', 'altcoins'],
                 'features': ['basic_signals', 'technical_analysis', 'fundamental_analysis', 'priority_support'],
-                'cooldown_minutes': 15
+                'cooldown_minutes': 10              # Снижено с 15 до 10
             }
         }
         
@@ -186,7 +294,7 @@ class EnhancedTradingConfig:
         
         # Общие настройки
         self.SEND_ALERTS_ONLY = os.getenv('SEND_ALERTS_ONLY', 'False').lower() == 'true'
-        self.DEFAULT_ALERT_COOLDOWN_MINUTES = int(os.getenv('ALERT_COOLDOWN_MINUTES', '60'))
+        self.DEFAULT_ALERT_COOLDOWN_MINUTES = int(os.getenv('ALERT_COOLDOWN_MINUTES', '45'))  # Снижено с 60
     
     def _load_chat_configuration(self):
         """Загрузка конфигурации чатов"""
@@ -227,11 +335,19 @@ class EnhancedTradingConfig:
         # Дополнительные чаты
         additional_chats_str = os.getenv('TELEGRAM_ADDITIONAL_CHATS', '')
         if additional_chats_str:
-            additional_chats = [chat.strip() for chat in additional_chats_str.split(',') if chat.strip()]
+            try:
+                # Поддерживаем как JSON, так и простой список через запятую
+                if additional_chats_str.startswith('['):
+                    additional_chats = json.loads(additional_chats_str)
+                else:
+                    additional_chats = [chat.strip() for chat in additional_chats_str.split(',') if chat.strip()]
+            except json.JSONDecodeError:
+                additional_chats = [chat.strip() for chat in additional_chats_str.split(',') if chat.strip()]
+            
             for chat in additional_chats:
                 if chat not in subscriptions:
                     subscriptions[chat] = {
-                        'tier': 'BASIC',
+                        'tier': 'BASIC',  # По умолчанию BASIC для дополнительных чатов
                         'is_admin': False,
                         'active': True,
                         'signals_sent_today': 0,
@@ -344,7 +460,7 @@ class EnhancedTradingConfig:
                 if signal_count % 5 == 0:
                     self._save_chat_configuration()
     
-    # ===== МЕТОДЫ ДЛЯ ЧТЕНИЯ (без изменений) =====
+    # ===== МЕТОДЫ ДЛЯ ЧТЕНИЯ (улучшенные) =====
     
     def get_authorized_chats(self) -> List[str]:
         """Получение списка авторизованных чатов"""
@@ -361,27 +477,31 @@ class EnhancedTradingConfig:
                self.CHAT_SUBSCRIPTIONS[chat_id].get('active', False)
     
     def can_receive_signal(self, chat_id: str, category: str) -> tuple[bool, str]:
-        """Проверка возможности получения сигнала для чата"""
+        """ИСПРАВЛЕННАЯ проверка возможности получения сигнала для чата"""
         if not self.is_chat_authorized(chat_id):
             return False, "Чат не авторизован"
         
         chat_settings = self.CHAT_SUBSCRIPTIONS[chat_id]
         
+        # Администраторы получают ВСЕ сигналы без ограничений
         if chat_settings.get('is_admin', False):
             return True, "OK (Admin - unlimited access)"
         
         tier = chat_settings['tier']
         tier_settings = self.SUBSCRIPTION_TIERS.get(tier, self.SUBSCRIPTION_TIERS['FREE'])
         
+        # УЛУЧШЕННАЯ обработка категории 'other' - разрешаем для всех BASIC+
         if category == 'other':
-            if tier in ['VIP', 'PREMIUM']:
+            if tier in ['VIP', 'PREMIUM', 'BASIC']:  # Добавили BASIC
                 return True, f"OK (Category 'other' allowed for {tier})"
             else:
-                return False, f"Категория 'other' доступна только для PREMIUM/VIP"
+                return False, f"Категория 'other' доступна только для BASIC/PREMIUM/VIP"
         
+        # Проверяем категорию
         if category not in tier_settings['categories_allowed']:
             return False, f"Категория '{category}' недоступна для уровня '{tier}'"
         
+        # Проверяем лимит сигналов
         max_signals = tier_settings['max_signals_per_day']
         if max_signals > 0:
             signals_today = chat_settings.get('signals_sent_today', 0)
@@ -402,16 +522,215 @@ class EnhancedTradingConfig:
         tier_settings = self.SUBSCRIPTION_TIERS.get(tier, self.SUBSCRIPTION_TIERS['FREE'])
         return tier_settings.get('cooldown_minutes', self.DEFAULT_ALERT_COOLDOWN_MINUTES)
 
-# Инструкция по интеграции
-"""
-ЗАМЕНИТЕ в enhanced_main.py:
+# ===== ДОПОЛНИТЕЛЬНЫЕ КОНСТАНТЫ И НАСТРОЙКИ =====
 
-БЫЛО:
-from config import TradingConfig
+# Паттерны свечей для распознавания (из config.py)
+CANDLESTICK_PATTERNS = {
+    'bullish': [
+        'hammer', 'inverted_hammer', 'bullish_engulfing', 
+        'piercing_line', 'morning_star', 'three_white_soldiers'
+    ],
+    'bearish': [
+        'hanging_man', 'shooting_star', 'bearish_engulfing',
+        'dark_cloud_cover', 'evening_star', 'three_black_crows'
+    ]
+}
 
-СТАЛО:
-from persistent_config_system import EnhancedTradingConfig as TradingConfig
+# Веса для различных индикаторов при расчете общего сигнала
+INDICATOR_WEIGHTS = {
+    'trend_following': 0.25,    # Трендовые индикаторы (EMA, MACD)
+    'momentum': 0.20,           # Моментум (RSI, Stochastic)
+    'volatility': 0.15,         # Волатильность (Bollinger Bands)
+    'volume': 0.15,             # Объемные индикаторы
+    'candlestick': 0.15,        # Свечные паттерны
+    'support_resistance': 0.10   # Уровни поддержки/сопротивления
+}
 
-Теперь все изменения через админские команды будут сохраняться в файл chat_subscriptions.json
-и восстанавливаться после перезапуска бота!
-"""
+# Настройки для различных типов рынка
+MARKET_CONDITIONS = {
+    'trending': {
+        'min_trend_strength': 0.6,
+        'preferred_indicators': ['MACD', 'EMA', 'ADX']
+    },
+    'ranging': {
+        'max_trend_strength': 0.4,
+        'preferred_indicators': ['RSI', 'Stochastic', 'BB']
+    },
+    'volatile': {
+        'min_volatility': 0.02,
+        'risk_multiplier': 0.5
+    }
+}
+
+# УЛУЧШЕННЫЕ настройки для специфичных пар (расширенный список)
+PAIR_SPECIFIC_SETTINGS = {
+    # ===== МЕМКОИНЫ - агрессивная торговля =====
+    'DOGEUSDT': {
+        'max_leverage': 3,
+        'min_confidence': 70.0,         # Снижено с 80
+        'volatility_threshold': 0.15,
+        'min_volume_multiplier': 0.8    # Снижен множитель
+    },
+    'SHIBUSDT': {
+        'max_leverage': 3,
+        'min_confidence': 70.0,         # Снижено с 80
+        'volatility_threshold': 0.15,
+        'min_volume_multiplier': 0.8
+    },
+    'PEPEUSDT': {
+        'max_leverage': 2,
+        'min_confidence': 75.0,         # Снижено с 85
+        'volatility_threshold': 0.20,
+        'min_volume_multiplier': 0.7
+    },
+    '1000PEPEUSDT': {
+        'max_leverage': 2,
+        'min_confidence': 75.0,
+        'volatility_threshold': 0.20,
+        'min_volume_multiplier': 0.7
+    },
+    'FLOKIUSDT': {
+        'max_leverage': 3,
+        'min_confidence': 70.0,
+        'volatility_threshold': 0.18,
+        'min_volume_multiplier': 0.8
+    },
+    
+    # ===== DEFI ТОКЕНЫ - консервативная торговля =====
+    'LINKUSDT': {
+        'max_leverage': 5,
+        'min_confidence': 65.0,         # Снижено с 70
+        'volatility_threshold': 0.08,
+        'min_volume_multiplier': 0.9
+    },
+    'AAVEUSDT': {
+        'max_leverage': 5,
+        'min_confidence': 65.0,
+        'volatility_threshold': 0.08,
+        'min_volume_multiplier': 0.9
+    },
+    'UNIUSDT': {
+        'max_leverage': 4,
+        'min_confidence': 65.0,
+        'volatility_threshold': 0.10,
+        'min_volume_multiplier': 0.9
+    },
+    'MKRUSDT': {
+        'max_leverage': 4,
+        'min_confidence': 68.0,
+        'volatility_threshold': 0.12,
+        'min_volume_multiplier': 1.0
+    },
+    
+    # ===== НОВЫЕ ПРОЕКТЫ - осторожная торговля =====
+    'CETUSUSDT': {
+        'max_leverage': 2,
+        'min_confidence': 75.0,         # Снижено с 85
+        'volatility_threshold': 0.25,
+        'min_volume_multiplier': 1.5    # Снижено с 2.0
+    },
+    'SLERFUSDT': {
+        'max_leverage': 2,
+        'min_confidence': 75.0,
+        'volatility_threshold': 0.25,
+        'min_volume_multiplier': 1.5
+    },
+    'SXTUSDT': {
+        'max_leverage': 3,
+        'min_confidence': 70.0,
+        'volatility_threshold': 0.20,
+        'min_volume_multiplier': 1.2
+    },
+    'TIAUSDT': {
+        'max_leverage': 4,
+        'min_confidence': 68.0,
+        'volatility_threshold': 0.15,
+        'min_volume_multiplier': 1.0
+    },
+    
+    # ===== GAMING/NFT ТОКЕНЫ =====
+    'APEUSDT': {
+        'max_leverage': 3,
+        'min_confidence': 68.0,
+        'volatility_threshold': 0.15,
+        'min_volume_multiplier': 0.9
+    },
+    'SANDUSDT': {
+        'max_leverage': 4,
+        'min_confidence': 65.0,
+        'volatility_threshold': 0.12,
+        'min_volume_multiplier': 0.9
+    },
+    'MANAUSDT': {
+        'max_leverage': 4,
+        'min_confidence': 65.0,
+        'volatility_threshold': 0.12,
+        'min_volume_multiplier': 0.9
+    },
+    
+    # ===== LAYER 1 БЛОКЧЕЙНЫ =====
+    'AVAXUSDT': {
+        'max_leverage': 5,
+        'min_confidence': 62.0,
+        'volatility_threshold': 0.10,
+        'min_volume_multiplier': 0.8
+    },
+    'DOTUSDT': {
+        'max_leverage': 5,
+        'min_confidence': 62.0,
+        'volatility_threshold': 0.10,
+        'min_volume_multiplier': 0.8
+    },
+    'MATICUSDT': {
+        'max_leverage': 5,
+        'min_confidence': 60.0,
+        'volatility_threshold': 0.08,
+        'min_volume_multiplier': 0.7
+    },
+    'ATOMUSDT': {
+        'max_leverage': 4,
+        'min_confidence': 65.0,
+        'volatility_threshold': 0.12,
+        'min_volume_multiplier': 0.9
+    },
+    'NEARUSDT': {
+        'max_leverage': 4,
+        'min_confidence': 65.0,
+        'volatility_threshold': 0.12,
+        'min_volume_multiplier': 0.9
+    },
+    'APTUSDT': {
+        'max_leverage': 4,
+        'min_confidence': 68.0,
+        'volatility_threshold': 0.15,
+        'min_volume_multiplier': 1.0
+    },
+    'SUIUSDT': {
+        'max_leverage': 4,
+        'min_confidence': 68.0,
+        'volatility_threshold': 0.15,
+        'min_volume_multiplier': 1.0
+    }
+}
+
+# ===== UTILITY ФУНКЦИИ =====
+
+def get_test_mode_status() -> bool:
+    """Проверить статус тестового режима"""
+    return os.getenv('TEST_MODE', 'False').lower() == 'true'
+
+def log_config_status():
+    """Логирование статуса конфигурации"""
+    test_mode = get_test_mode_status()
+    
+    if test_mode:
+        logger.info("🧪 ENHANCED CONFIG: Тестовый режим активен")
+        logger.info("   • Минимальная уверенность: 45%")
+        logger.info("   • Минимальные объемы снижены в 10 раз")
+        logger.info("   • Максимальный риск: 3%")
+    else:
+        logger.info("🎯 ENHANCED CONFIG: Продакшн режим")
+        logger.info("   • Минимальная уверенность: 70%")
+        logger.info("   • Оптимизированные объемы (снижены в 2 раза)")
+        logger.info("   • Максимальный риск: 2%")
+

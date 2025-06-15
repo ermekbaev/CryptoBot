@@ -118,10 +118,10 @@ class TradingConfig:
         # }
 
         self.MIN_VOLUMES_BY_CATEGORY = {
-            'major': 1000000000,        # 1B для топовых (строже)
-            'defi': 150000000,          # 150M для DeFi (строже)
-            'layer1': 200000000,        # 200M для Layer 1 (строже)
-            'altcoins': 100000000       # 100M для альткоинов (строже)
+            'major': 500000000,     # Было 1B
+            'defi': 50000000,       # Было 150M
+            'layer1': 100000000,    # Было 200M
+            'altcoins': 50000000    # Было 100M
         }
 
     
@@ -177,7 +177,6 @@ class TradingConfig:
                 'cooldown_minutes': 30           
             }
         }
-        
         # Настройка пользователей/чатов
         self.CHAT_SUBSCRIPTIONS = self._load_chat_subscriptions(all_chats, admin_chat)
         

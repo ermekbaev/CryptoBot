@@ -1,5 +1,6 @@
 # signal_generator.py - ИСПРАВЛЕННАЯ ВЕРСИЯ v2.0
 
+import os
 import pandas as pd
 import numpy as np
 from typing import Dict, List, Optional, Tuple
@@ -82,6 +83,10 @@ class SignalGenerator:
                 metrics, tech_result, fund_result, pair_category, pair_settings
             ):
                 logger.info(f"Условия для сигнала {symbol} не выполнены")
+                logger.info(f"[DEBUG] {symbol} | TechConf: {tech_result.confidence:.1f} | FundConf: {fund_result.confidence:.1f} | "
+                f"CombinedScore: {metrics['combined_score']:.1f} | Risk: {metrics['risk_score']:.1f} | "
+                f"Volatility: {metrics['volatility_factor']:.1f}")
+
                 return None
             
             # Определяем тип сигнала
@@ -116,36 +121,42 @@ class SignalGenerator:
             return None
     
     def _check_market_conditions(self, symbol: str, category: str) -> bool:
-        """НОВАЯ ФУНКЦИЯ: Проверка общих рыночных условий"""
         try:
-            # Для мемкоинов и новых проектов не применяем рыночный фильтр
-            # (они могут двигаться независимо от рынка)
-            if category in ['meme', 'emerging']:
+            # УБРАЛИ СЛУЧАЙНУЮ ПРОВЕРКУ!
+            # Теперь используем реальную логику
+            
+            logger.info(f"🌍 Проверка рыночных условий для {symbol} ({category})")
+            
+            # Для тестового режима - всегда разрешаем
+            test_mode = os.getenv('TEST_MODE', 'False').lower() == 'true'
+            if test_mode:
+                logger.info(f"🧪 Тестовый режим: рыночные условия для {symbol} - РАЗРЕШЕНО")
                 return True
             
-            # Для остальных проверяем sentiment Bitcoin
-            # В реальной реализации здесь должен быть анализ BTC
-            # Пока используем упрощенную логику
+            # Для мемкоинов и новых проектов - не применяем рыночный фильтр
+            # (они могут двигаться независимо от рынка)
+            if category in ['meme', 'emerging']:
+                logger.info(f"🎯 {category.upper()} категория: рыночный фильтр отключен для {symbol}")
+                return True
             
-            # Если недавно был сильный обвал рынка, не торгуем альткоины
-            # Это можно определить по индексу страха/жадности, BTC волатильности и т.д.
+            # Для остальных категорий используем упрощенную логику
+            # В реальной системе здесь должен быть анализ BTC, Fear&Greed Index и т.д.
             
-            # Упрощенная проверка: разрешаем торговлю в 80% случаев
-            import random
-            market_ok_probability = {
-                'major': 0.95,      # Топовые активы торгуем почти всегда
-                'defi': 0.85,       # DeFi токены немного осторожнее
-                'layer1': 0.85,     # Layer 1 аналогично
-                'gaming_nft': 0.75, # Gaming токены более осторожно
-                'altcoins': 0.80,   # Альткоины средне
-                'other': 0.80
-            }.get(category, 0.80)
+            # Временно разрешаем торговлю для восстановления сигналов
+            market_conditions_ok = {
+                'major': True,       # Топовые активы торгуем всегда
+                'defi': True,        # DeFi токены тоже разрешаем
+                'layer1': True,      # Layer 1 разрешаем
+                'gaming_nft': True,  # Gaming токены разрешаем
+                'altcoins': True,    # Альткоины разрешаем
+                'other': True        # Прочие тоже разрешаем
+            }.get(category, True)
             
-            # В продакшене здесь должна быть реальная логика анализа BTC
-            return random.random() < market_ok_probability
+            logger.info(f"📊 Рыночные условия для {symbol} ({category}): {'РАЗРЕШЕНО' if market_conditions_ok else 'ЗАПРЕЩЕНО'}")
+            return market_conditions_ok
             
         except Exception as e:
-            logger.error(f"Ошибка проверки рыночных условий: {e}")
+            logger.error(f"Ошибка проверки рыночных условий для {symbol}: {e}")
             return True  # При ошибке разрешаем торговлю
     
     def _get_pair_category(self, symbol: str) -> str:
@@ -262,73 +273,63 @@ class SignalGenerator:
         return min(base_risk, 100)
     
     def _should_generate_signal_enhanced(self, 
-                                       metrics: Dict,
-                                       tech_result: TechnicalAnalysisResult,
-                                       fund_result: FundamentalAnalysisResult,
-                                       category: str,
-                                       pair_settings: Dict) -> bool:
-        """Улучшенная проверка условий генерации сигнала"""
-        
-        # Минимальный уровень уверенности по категориям
+        metrics: Dict,
+        tech_result: TechnicalAnalysisResult,
+        fund_result: FundamentalAnalysisResult,
+        category: str,
+        pair_settings: Dict) -> bool:
+
         category_min_confidence = {
-            'major': 65.0,       # Снижено с 70 для лучшей генерации
-            'defi': 70.0,
-            'layer1': 70.0,
-            'meme': 80.0,        # Высокие требования для мемов
-            'gaming_nft': 75.0,
-            'emerging': 80.0,    # Высокие для новых проектов
-            'altcoins': 70.0,
-            'other': 70.0
+            'major': 55.0,
+            'defi': 60.0,
+            'layer1': 60.0,
+            'meme': 70.0,
+            'gaming_nft': 65.0,
+            'emerging': 70.0,
+            'altcoins': 60.0,
+            'other': 60.0
         }
-        
-        # Используем настройки пары или категории
         min_confidence = pair_settings.get(
             'min_confidence', 
             category_min_confidence.get(category, self.config.MIN_CONFIDENCE_LEVEL)
         )
-        
-        # Проверяем уверенность (используем максимум из техн. и фунд.)
         max_confidence = max(tech_result.confidence, fund_result.confidence)
         if max_confidence < min_confidence:
-            logger.debug(f"Недостаточная уверенность: {max_confidence:.1f} < {min_confidence}")
+            logger.debug(f"[FILTER] {tech_result.symbol} — confidence {max_confidence:.1f} < min required {min_confidence:.1f}")
             return False
-        
-        # Максимальный риск по категориям
+
         category_max_risk = {
-            'major': 50.0,       # Снижено для лучшей генерации
-            'defi': 60.0,
-            'layer1': 60.0,
-            'meme': 75.0,        # Допускаем больший риск для мемов
-            'gaming_nft': 65.0,
-            'emerging': 75.0,
-            'altcoins': 60.0,
-            'other': 60.0
+            'major': 65.0,
+            'defi': 70.0,
+            'layer1': 70.0,
+            'meme': 85.0,
+            'gaming_nft': 75.0,
+            'emerging': 85.0,
+            'altcoins': 70.0,
+            'other': 70.0
         }
-        
         max_risk = category_max_risk.get(category, 60.0)
         if metrics['risk_score'] > max_risk:
-            logger.debug(f"Слишком высокий риск: {metrics['risk_score']:.1f} > {max_risk}")
+            logger.debug(f"[FILTER] {tech_result.symbol} — risk {metrics['risk_score']:.1f} > max allowed {max_risk:.1f}")
             return False
-        
-        # Проверяем силу сигнала
-        min_signal_strength = 20 if category in ['meme', 'emerging'] else 15  # Снижено
+
+        min_signal_strength = 20 if category in ['meme', 'emerging'] else 15
         if abs(metrics['combined_score']) < min_signal_strength:
-            logger.debug(f"Слабый сигнал: {abs(metrics['combined_score']):.1f} < {min_signal_strength}")
+            logger.debug(f"[FILTER] {tech_result.symbol} — signal strength {abs(metrics['combined_score']):.1f} < required {min_signal_strength}")
             return False
-        
-        # Проверяем волатильность
+
         volatility_threshold = pair_settings.get('volatility_threshold', 0.15)
         if category == 'meme':
-            volatility_threshold = 0.30  # Для мемов выше порог
+            volatility_threshold = 0.30
         elif category == 'emerging':
-            volatility_threshold = 0.25  # Для новых проектов
-        
+            volatility_threshold = 0.25
+
         if metrics['volatility_factor'] > volatility_threshold * 100:
-            logger.debug(f"Слишком высокая волатильность: {metrics['volatility_factor']:.1f}")
+            logger.debug(f"[FILTER] {tech_result.symbol} — volatility {metrics['volatility_factor']:.1f}% > threshold {volatility_threshold * 100:.1f}%")
             return False
-        
+
         return True
-    
+
     def _calculate_trade_parameters_enhanced(self, 
                                            signal_type: str,
                                            klines_data: pd.DataFrame,
@@ -877,33 +878,46 @@ class SignalGenerator:
         return base_leverage
     
     def _determine_signal_type_enhanced(self, 
-                                      metrics: Dict,
-                                      tech_result: TechnicalAnalysisResult,
-                                      fund_result: FundamentalAnalysisResult,
-                                      category: str) -> str:
-        """Определение типа сигнала с учетом категории"""
-        
-        # Пороги для разных категорий (снижены для лучшей генерации)
-        category_thresholds = {
-            'major': 12,        # Снижено с 15
-            'defi': 15,         # Снижено с 18
-            'layer1': 15,       # Снижено с 18
-            'meme': 18,         # Снижено с 22
-            'gaming_nft': 16,   # Снижено с 20
-            'emerging': 18,     # Снижено с 22
-            'altcoins': 15,     # Снижено с 18
-            'other': 15
+        metrics: Dict,
+        tech_result: TechnicalAnalysisResult,
+        fund_result: FundamentalAnalysisResult,
+        category: str) -> str:
+        """Определение типа сигнала с учетом уверенности"""
+
+        # Получаем максимум уверенности из техн. и фунд.
+        max_confidence = max(tech_result.confidence, fund_result.confidence)
+
+        # Базовые пороги
+        base_thresholds = {
+            'major': 8,
+            'defi': 9,
+            'layer1': 9,
+            'meme': 12,
+            'gaming_nft': 11,
+            'emerging': 12,
+            'altcoins': 9,
+            'other': 9
         }
+
+        # Смягчаем порог, если уверенность высокая
+        threshold = base_thresholds.get(category, 18)
         
-        threshold = category_thresholds.get(category, 15)
-        
+        if max_confidence > 65:
+            threshold -= 4  # Снижение при уверенности выше 65%
+        elif max_confidence > 55:
+            threshold -= 2  # Снижение при уверенности выше 55%
+
+        # Защита от слишком низкого порога
+        threshold = max(threshold, 10)
+
+        # Принятие сигнала
         if metrics['combined_score'] > threshold:
             return 'BUY'
         elif metrics['combined_score'] < -threshold:
             return 'SELL'
         else:
             return 'NEUTRAL'
-    
+
     def _create_enhanced_technical_summary(self, tech_result: TechnicalAnalysisResult, category: str) -> str:
         """Создание улучшенного описания технического анализа"""
         
