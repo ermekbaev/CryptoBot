@@ -98,6 +98,55 @@ class EnhancedTradingConfig:
         
         # Менеджер сохранения
         self.config_manager = PersistentConfigManager()
+
+         # Определяем режим оптимизации
+        optimization_mode = os.getenv('OPTIMIZATION_MODE', 'moderate')  # conservative, moderate, aggressive
+        test_mode = os.getenv('TEST_MODE', 'False').lower() == 'true'
+        
+        if optimization_mode == 'conservative':
+            # КОНСЕРВАТИВНО: минимальные изменения, максимальное качество
+            self.SIGNAL_MULTIPLIERS = {
+                'confidence_reduction': 0.95,  # снижаем на 5%
+                'risk_increase': 1.05,          # увеличиваем на 5%
+                'threshold_reduction': 0.90,    # снижаем пороги на 10%
+                'volume_reduction': 0.7         # снижаем объемы на 30%
+            }
+        elif optimization_mode == 'aggressive':
+            # АГРЕССИВНО: максимальные изменения, больше сигналов
+            self.SIGNAL_MULTIPLIERS = {
+                'confidence_reduction': 0.75,  # снижаем на 25%
+                'risk_increase': 1.30,          # увеличиваем на 30%
+                'threshold_reduction': 0.60,    # снижаем пороги на 40%
+                'volume_reduction': 0.3         # снижаем объемы на 70%
+            }
+        else:  # moderate (по умолчанию)
+            # УМЕРЕННО: сбалансированный подход
+            self.SIGNAL_MULTIPLIERS = {
+                'confidence_reduction': 0.85,  # снижаем на 15%
+                'risk_increase': 1.15,          # увеличиваем на 15%
+                'threshold_reduction': 0.75,    # снижаем пороги на 25%
+                'volume_reduction': 0.5         # снижаем объемы на 50%
+            }
+        
+        # Применяем мультипликаторы к объемам
+        base_volumes = {
+            'major': 100000000,
+            'defi': 20000000,
+            'layer1': 30000000,
+            'meme': 10000000,
+            'gaming_nft': 5000000,
+            'emerging': 3000000,
+            'altcoins': 10000000
+        }
+        
+        self.MIN_VOLUMES_BY_CATEGORY = {
+            category: int(volume * self.SIGNAL_MULTIPLIERS['volume_reduction'])
+            for category, volume in base_volumes.items()
+        }
+        
+        logger.info(f"🎛️ РЕЖИМ ОПТИМИЗАЦИИ: {optimization_mode.upper()}")
+        logger.info(f"📊 Мультипликаторы: {self.SIGNAL_MULTIPLIERS}")
+
         
         # Торговые параметры (с поддержкой тестового режима)
         test_mode = os.getenv('TEST_MODE', 'False').lower() == 'true'
@@ -252,13 +301,13 @@ class EnhancedTradingConfig:
         else:
             logger.info("🎯 ПРОДАКШН РЕЖИМ: Оптимизированные объемы для стабильной генерации")
             self.MIN_VOLUMES_BY_CATEGORY = {
-                'major': 100000000,     # 500M вместо 1B (в 2 раза меньше)
-                'defi': 20000000,       # 75M вместо 150M (в 2 раза меньше)
-                'layer1': 30000000,    # 100M вместо 200M (в 2 раза меньше)
-                'meme': 10000000,       # 25M вместо 50M (в 2 раза меньше)
-                'gaming_nft': 5000000, # 15M вместо 30M (в 2 раза меньше)
-                'emerging': 3000000,    # 5M вместо 10M (в 2 раза меньше)
-                'altcoins': 10000000    # 25M вместо 50M (в 2 раза меньше)
+                'major': 30000000,      # 30M вместо 100M
+                'defi': 8000000,        # 8M вместо 20M
+                'layer1': 12000000,     # 12M вместо 30M 
+                'meme': 3000000,        # 3M вместо 10M
+                'gaming_nft': 2000000,  # 2M вместо 5M
+                'emerging': 800000,     # 800K вместо 3M
+                'altcoins': 5000000     # 5M вместо 10M
             }
         
         # УЛУЧШЕННАЯ система подписок (более гибкая)

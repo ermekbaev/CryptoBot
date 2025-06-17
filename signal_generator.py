@@ -26,6 +26,13 @@ class SignalGenerator:
         # Добавляем проверку состояния рынка
         self.market_sentiment = 'NEUTRAL'
         self.last_btc_analysis = None
+
+    def _apply_optimization_multipliers(self, base_value: float, multiplier_type: str) -> float:
+        """Применение мультипликаторов оптимизации"""
+        if hasattr(self.config, 'SIGNAL_MULTIPLIERS'):
+            multiplier = self.config.SIGNAL_MULTIPLIERS.get(multiplier_type, 1.0)
+            return base_value * multiplier
+        return base_value     
         
     def generate_signal(self, 
                        symbol: str,
@@ -278,51 +285,59 @@ class SignalGenerator:
         fund_result: FundamentalAnalysisResult,
         category: str,
         pair_settings: Dict) -> bool:
+        """СБАЛАНСИРОВАННЫЕ условия для генерации качественных сигналов"""
 
+        # УМЕРЕННО сниженные требования к уверенности
         category_min_confidence = {
-            'major': 55.0,
-            'defi': 60.0,
-            'layer1': 60.0,
-            'meme': 70.0,
-            'gaming_nft': 65.0,
-            'emerging': 70.0,
-            'altcoins': 60.0,
-            'other': 60.0
+            'major': 50.0,      # было 55.0, снизили на 9%
+            'defi': 55.0,       # было 60.0, снизили на 8%
+            'layer1': 55.0,     # было 60.0, снизили на 8%
+            'meme': 60.0,       # было 70.0, снизили на 14%
+            'gaming_nft': 58.0, # было 65.0, снизили на 11%
+            'emerging': 62.0,   # было 70.0, снизили на 11%
+            'altcoins': 53.0,   # было 60.0, снизили на 12%
+            'other': 53.0       # было 60.0, снизили на 12%
         }
+        
         min_confidence = pair_settings.get(
             'min_confidence', 
-            category_min_confidence.get(category, self.config.MIN_CONFIDENCE_LEVEL)
+            category_min_confidence.get(category, 53.0)
         )
+        
         max_confidence = max(tech_result.confidence, fund_result.confidence)
         if max_confidence < min_confidence:
             logger.debug(f"[FILTER] {tech_result.symbol} — confidence {max_confidence:.1f} < min required {min_confidence:.1f}")
             return False
 
+        # УМЕРЕННО повышенные максимальные риски
         category_max_risk = {
-            'major': 65.0,
-            'defi': 70.0,
-            'layer1': 70.0,
-            'meme': 85.0,
-            'gaming_nft': 75.0,
-            'emerging': 85.0,
-            'altcoins': 70.0,
-            'other': 70.0
+            'major': 70.0,      # было 65.0, подняли на 8%
+            'defi': 75.0,       # было 70.0, подняли на 7%
+            'layer1': 75.0,     # было 70.0, подняли на 7%
+            'meme': 90.0,       # было 85.0, подняли на 6%
+            'gaming_nft': 80.0, # было 75.0, подняли на 7%
+            'emerging': 90.0,   # было 85.0, подняли на 6%
+            'altcoins': 75.0,   # было 70.0, подняли на 7%
+            'other': 75.0       # было 70.0, подняли на 7%
         }
-        max_risk = category_max_risk.get(category, 60.0)
+        
+        max_risk = category_max_risk.get(category, 75.0)
         if metrics['risk_score'] > max_risk:
             logger.debug(f"[FILTER] {tech_result.symbol} — risk {metrics['risk_score']:.1f} > max allowed {max_risk:.1f}")
             return False
 
-        min_signal_strength = 20 if category in ['meme', 'emerging'] else 15
+        # УМЕРЕННО сниженная минимальная сила сигнала
+        min_signal_strength = 12 if category in ['meme', 'emerging'] else 8  # было 20/15, снизили до 12/8
         if abs(metrics['combined_score']) < min_signal_strength:
             logger.debug(f"[FILTER] {tech_result.symbol} — signal strength {abs(metrics['combined_score']):.1f} < required {min_signal_strength}")
             return False
 
-        volatility_threshold = pair_settings.get('volatility_threshold', 0.15)
+        # УМЕРЕННО повышенные пороги волатильности
+        volatility_threshold = pair_settings.get('volatility_threshold', 0.20)  # было 0.15, подняли до 0.20
         if category == 'meme':
-            volatility_threshold = 0.30
+            volatility_threshold = 0.35  # было 0.30, подняли до 0.35
         elif category == 'emerging':
-            volatility_threshold = 0.25
+            volatility_threshold = 0.30  # было 0.25, подняли до 0.30
 
         if metrics['volatility_factor'] > volatility_threshold * 100:
             logger.debug(f"[FILTER] {tech_result.symbol} — volatility {metrics['volatility_factor']:.1f}% > threshold {volatility_threshold * 100:.1f}%")
@@ -882,33 +897,43 @@ class SignalGenerator:
         tech_result: TechnicalAnalysisResult,
         fund_result: FundamentalAnalysisResult,
         category: str) -> str:
-        """Определение типа сигнала с учетом уверенности"""
 
-        # Получаем максимум уверенности из техн. и фунд.
         max_confidence = max(tech_result.confidence, fund_result.confidence)
 
-        # Базовые пороги
+        # # УМЕРЕННО сниженные пороги (было слишком агрессивно)
         base_thresholds = {
-            'major': 8,
-            'defi': 9,
-            'layer1': 9,
-            'meme': 12,
-            'gaming_nft': 11,
-            'emerging': 12,
-            'altcoins': 9,
-            'other': 9
+            'major': 7,         # было 8, снизили на 12%
+            'defi': 8,          # было 9, снизили на 11%
+            'layer1': 8,        # было 9, снизили на 11%
+            'meme': 10,         # было 12, снизили на 17%
+            'gaming_nft': 9,    # было 11, снизили на 18%
+            'emerging': 10,     # было 12, снизили на 17%
+            'altcoins': 7,      # было 9, снизили на 22%
+            'other': 7          # было 9, снизили на 22%
         }
 
-        # Смягчаем порог, если уверенность высокая
-        threshold = base_thresholds.get(category, 18)
-        
-        if max_confidence > 65:
-            threshold -= 4  # Снижение при уверенности выше 65%
-        elif max_confidence > 55:
-            threshold -= 2  # Снижение при уверенности выше 55%
+                # УМЕРЕННО сниженные пороги (было слишком агрессивно)
+        # base_thresholds = {
+        #     'major': 10,         # было 8, снизили на 12%
+        #     'defi': 11,          # было 9, снизили на 11%
+        #     'layer1': 10,        # было 9, снизили на 11%
+        #     'meme': 12,         # было 12, снизили на 17%
+        #     'gaming_nft': 11,    # было 11, снизили на 18%
+        #     'emerging': 12,     # было 12, снизили на 17%
+        #     'altcoins': 9,      # было 9, снизили на 22%
+        #     'other': 9          # было 9, снизили на 22%
+        # }
 
-        # Защита от слишком низкого порога
-        threshold = max(threshold, 10)
+        threshold = base_thresholds.get(category, 7)
+        
+        # Бонус за высокую уверенность (более консервативно)
+        if max_confidence > 70:     # повысили с 65 до 70
+            threshold -= 2          # снизили с 3 до 2
+        elif max_confidence > 60:   # повысили с 55 до 60
+            threshold -= 1          # снизили с 2 до 1
+
+        # Более консервативная защита
+        threshold = max(threshold, 5)  # было 3, подняли до 5
 
         # Принятие сигнала
         if metrics['combined_score'] > threshold:
@@ -917,7 +942,6 @@ class SignalGenerator:
             return 'SELL'
         else:
             return 'NEUTRAL'
-
     def _create_enhanced_technical_summary(self, tech_result: TechnicalAnalysisResult, category: str) -> str:
         """Создание улучшенного описания технического анализа"""
         
